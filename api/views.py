@@ -9,10 +9,35 @@ SECRET = "SECRET123"
 
 @csrf_exempt
 def signup(request):
-    data = json.loads(request.body)
-    User.objects.create(**data)
-    return JsonResponse({"message": "Signup success"})
+    if request.method == "GET":
+        return JsonResponse(
+            {"message": "Signup endpoint is live. Use POST to signup."}
+        )
 
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "Invalid request method"}, status=400
+        )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"error": "Invalid JSON"}, status=400
+        )
+
+    if User.objects.filter(email=data.get("email")).exists():
+        return JsonResponse(
+            {"error": "User already exists"}, status=400
+        )
+
+    User.objects.create(
+        name=data.get("name"),
+        email=data.get("email"),
+        password=data.get("password"),
+    )
+
+    return JsonResponse({"message": "Signup successful"})
 
 @csrf_exempt
 def login(request):
