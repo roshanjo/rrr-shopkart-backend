@@ -4,56 +4,68 @@ from .models import User, Order
 import json
 import jwt
 from datetime import datetime, timedelta
+from django.conf import settings
 
-SECRET = "SECRET123"
+# ✅ USE DJANGO SECRET KEY
+JWT_SECRET = settings.SECRET_KEY
+
 
 @csrf_exempt
 def signup(request):
     if request.method == "GET":
-        return JsonResponse(
-            {"message": "Signup endpoint is live. Use POST to signup."}
-        )
+        return JsonResponse({
+            "message": "Signup endpoint is live. Use POST."
+        })
 
     if request.method != "POST":
-        return JsonResponse(
-            {"error": "Invalid request method"}, status=400
-        )
+        return JsonResponse({"error": "Invalid method"}, status=405)
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse(
-            {"error": "Invalid JSON"}, status=400
-        )
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     if User.objects.filter(email=data.get("email")).exists():
-        return JsonResponse(
-            {"error": "User already exists"}, status=400
-        )
+        return JsonResponse({"error": "User already exists"}, status=400)
 
     User.objects.create(
         name=data.get("name"),
         email=data.get("email"),
-        password=data.get("password"),
+        password=data.get("password")
     )
 
     return JsonResponse({"message": "Signup successful"})
 
+
 @csrf_exempt
 def login(request):
-    data = json.loads(request.body)
+
+    # ✅ HANDLE BROWSER TEST
+    if request.method == "GET":
+        return JsonResponse({
+            "message": "Login endpoint is live. Use POST."
+        })
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     try:
         user = User.objects.get(
-            email=data["email"],
-            password=data["password"]
+            email=data.get("email"),
+            password=data.get("password")
         )
+
         token = jwt.encode(
             {
                 "user_id": user.id,
                 "exp": datetime.utcnow() + timedelta(hours=5)
             },
-            SECRET,
+            JWT_SECRET,
             algorithm="HS256"
         )
 
@@ -62,27 +74,53 @@ def login(request):
             "name": user.name,
             "user_id": user.id
         })
-    except:
+
+    except User.DoesNotExist:
         return JsonResponse({"error": "Invalid credentials"}, status=401)
 
 
 @csrf_exempt
 def save_order(request):
-    token = request.headers.get("Authorization").split(" ")[1]
-    payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
 
-    data = json.loads(request.body)
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return JsonResponse({"error": "Token missing"}, status=401)
+
+    try:
+        token = auth.split(" ")[1]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     Order.objects.create(
         user_id=payload["user_id"],
-        items=data["items"],
-        total=data["total"]
+        items=data.get("items"),
+        total=data.get("total")
     )
 
     return JsonResponse({"message": "Order saved"})
 
 
+@csrf_exempt
 def orders(request):
-    user_id = request.GET.get("user")
-    data = list(Order.objects.filter(user_id=user_id).values())
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return JsonResponse({"error": "Token missing"}, status=401)
+
+    try:
+        token = auth.split(" ")[1]
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+
+    data = list(
+        Order.objects.filter(user_id=payload["user_id"]).values()
+    )
     return JsonResponse(data, safe=False)
