@@ -1,9 +1,10 @@
 from django.urls import path
-from .views import signup, login, save_order, orders
+from .views import signup, login, save_order, orders, admin_orders
 
 urlpatterns = [
     path("signup/", signup),
     path("login/", login),
-    path("order/", save_order),
+    path("save-order/", save_order),
     path("orders/", orders),
+    path("admin/orders/", admin_orders),
 ]

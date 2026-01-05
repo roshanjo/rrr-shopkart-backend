@@ -5,6 +5,7 @@ import json
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 
 # ✅ USE DJANGO SECRET KEY
 JWT_SECRET = settings.SECRET_KEY
@@ -123,4 +124,9 @@ def orders(request):
     data = list(
         Order.objects.filter(user_id=payload["user_id"]).values()
     )
+    return JsonResponse(data, safe=False)
+
+@staff_member_required
+def admin_orders(request):
+    data = list(Order.objects.all().values())
     return JsonResponse(data, safe=False)
