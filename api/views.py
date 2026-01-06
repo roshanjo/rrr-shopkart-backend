@@ -11,6 +11,9 @@ from django.contrib.admin.views.decorators import staff_member_required
 JWT_SECRET = settings.SECRET_KEY
 
 
+# =========================
+# ✅ SIGNUP (AUTO LOGIN FIX)
+# =========================
 @csrf_exempt
 def signup(request):
     if request.method == "GET":
@@ -29,19 +32,35 @@ def signup(request):
     if User.objects.filter(email=data.get("email")).exists():
         return JsonResponse({"error": "User already exists"}, status=400)
 
-    User.objects.create(
-        name=data.get("name"),
+    user = User.objects.create(
+        name=data.get("name", ""),
         email=data.get("email"),
         password=data.get("password")
     )
 
-    return JsonResponse({"message": "Signup successful"})
+    # ✅ AUTO LOGIN AFTER SIGNUP
+    token = jwt.encode(
+        {
+            "user_id": user.id,
+            "exp": datetime.utcnow() + timedelta(hours=5)
+        },
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+
+    return JsonResponse({
+        "token": token,
+        "name": user.name,
+        "user_id": user.id
+    })
 
 
+# ==========
+# ✅ LOGIN
+# ==========
 @csrf_exempt
 def login(request):
 
-    # ✅ HANDLE BROWSER TEST
     if request.method == "GET":
         return JsonResponse({
             "message": "Login endpoint is live. Use POST."
@@ -80,6 +99,9 @@ def login(request):
         return JsonResponse({"error": "Invalid credentials"}, status=401)
 
 
+# =================
+# ✅ SAVE ORDER
+# =================
 @csrf_exempt
 def save_order(request):
     if request.method != "POST":
@@ -109,6 +131,9 @@ def save_order(request):
     return JsonResponse({"message": "Order saved"})
 
 
+# =================
+# ✅ USER ORDERS
+# =================
 @csrf_exempt
 def orders(request):
     auth = request.headers.get("Authorization")
@@ -126,10 +151,18 @@ def orders(request):
     )
     return JsonResponse(data, safe=False)
 
+
+# =====================
+# ✅ ADMIN ONLY ORDERS
+# =====================
 @staff_member_required
 def admin_orders(request):
     data = list(Order.objects.all().values())
     return JsonResponse(data, safe=False)
 
+
+# ==========
+# ✅ HEALTH
+# ==========
 def health(request):
     return JsonResponse({"status": "Backend is healthy ✅"})
