@@ -130,3 +130,6 @@ def orders(request):
 def admin_orders(request):
     data = list(Order.objects.all().values())
     return JsonResponse(data, safe=False)
+
+def health(request):
+    return JsonResponse({"status": "Backend is healthy ✅"})
