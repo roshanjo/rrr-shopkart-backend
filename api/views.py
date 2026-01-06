@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import User, Order
 import json
 import jwt
+import stripe
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
@@ -173,3 +174,46 @@ def admin_orders(request):
 # ==========
 def health(request):
     return JsonResponse({"status": "Backend is healthy ✅"})
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+@csrf_exempt
+def create_checkout_session(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+    auth = request.headers.get("Authorization")
+    if not auth:
+        return JsonResponse({"error": "Token missing"}, status=401)
+
+    try:
+        token = auth.split(" ")[1]
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        total = int(data.get("total") * 100)  # cents
+    except:
+        return JsonResponse({"error": "Invalid data"}, status=400)
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "inr",
+                "product_data": {
+                    "name": "ShopKart Order",
+                },
+                "unit_amount": total,
+            },
+            "quantity": 1,
+        }],
+        success_url="https://rrr-shopkart-frontend.onrender.com/success",
+        cancel_url="https://rrr-shopkart-frontend.onrender.com/cart",
+    )
+
+    return JsonResponse({"url": session.url})
