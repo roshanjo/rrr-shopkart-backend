@@ -13,16 +13,21 @@ class JWTMiddleware:
     def __call__(self, request):
         path = request.path
 
-        # Allow public APIs without token
+        # ✅ Allow Django admin
+        if path.startswith("/admin/"):
+            return self.get_response(request)
+
+        # ✅ Allow public API routes
         if path in PUBLIC_PATHS:
             return self.get_response(request)
 
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
-            return JsonResponse(
-                {"error": "Token missing"},
-                status=401
-            )
+        # 🔐 Protect other API routes
+        if path.startswith("/api/"):
+            auth_header = request.headers.get("Authorization")
+            if not auth_header:
+                return JsonResponse(
+                    {"error": "Token missing"},
+                    status=401
+                )
 
         return self.get_response(request)
