@@ -16,43 +16,50 @@ JWT_SECRET = settings.SECRET_KEY
 # =========================
 @csrf_exempt
 def signup(request):
-    if request.method == "GET":
-        return JsonResponse({
-            "message": "Signup endpoint is live. Use POST."
-        })
-
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid method"}, status=405)
+        return JsonResponse(
+            {"message": "Signup endpoint is live. Use POST."},
+            status=200
+        )
 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    if User.objects.filter(email=data.get("email")).exists():
-        return JsonResponse({"error": "User already exists"}, status=400)
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
 
-    user = User.objects.create(
-        name=data.get("name", ""),
-        email=data.get("email"),
-        password=data.get("password")
+    if not name or not email or not password:
+        return JsonResponse(
+            {"error": "All fields are required"},
+            status=400
+        )
+
+    if User.objects.filter(email=email).exists():
+        return JsonResponse(
+            {"error": "User already exists"},
+            status=400
+        )
+
+    try:
+        user = User.objects.create(
+            name=name,
+            email=email,
+            password=password
+        )
+    except Exception as e:
+        # 👇 THIS prevents 500 crashes
+        return JsonResponse(
+            {"error": "Signup failed", "details": str(e)},
+            status=400
+        )
+
+    return JsonResponse(
+        {"message": "Signup successful"},
+        status=201
     )
-
-    # ✅ AUTO LOGIN AFTER SIGNUP
-    token = jwt.encode(
-        {
-            "user_id": user.id,
-            "exp": datetime.utcnow() + timedelta(hours=5)
-        },
-        JWT_SECRET,
-        algorithm="HS256"
-    )
-
-    return JsonResponse({
-        "token": token,
-        "name": user.name,
-        "user_id": user.id
-    })
 
 
 # ==========
