@@ -1,9 +1,14 @@
 from django.http import JsonResponse
+import jwt
+from django.conf import settings
+
+JWT_SECRET = settings.SECRET_KEY
 
 PUBLIC_PATHS = [
     "/api/login/",
     "/api/signup/",
     "/api/health/",
+    "/admin/",
 ]
 
 class JWTMiddleware:
@@ -11,23 +16,19 @@ class JWTMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        path = request.path
+        # ✅ Allow public routes
+        for path in PUBLIC_PATHS:
+            if request.path.startswith(path):
+                return self.get_response(request)
 
-        # ✅ Allow Django admin
-        if path.startswith("/admin/"):
-            return self.get_response(request)
+        auth = request.headers.get("Authorization")
+        if not auth:
+            return JsonResponse({"error": "Token missing"}, status=401)
 
-        # ✅ Allow public API routes
-        if path in PUBLIC_PATHS:
-            return self.get_response(request)
-
-        # 🔐 Protect other API routes
-        if path.startswith("/api/"):
-            auth_header = request.headers.get("Authorization")
-            if not auth_header:
-                return JsonResponse(
-                    {"error": "Token missing"},
-                    status=401
-                )
+        try:
+            token = auth.split(" ")[1]
+            jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        except Exception:
+            return JsonResponse({"error": "Invalid token"}, status=401)
 
         return self.get_response(request)
