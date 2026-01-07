@@ -1,15 +1,24 @@
 from pathlib import Path
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-change-this-in-production"
+# =========================
+# CORE SETTINGS
+# =========================
 
-DEBUG = False
+SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-key")
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["*"]
 
+# =========================
+# APPLICATIONS
+# =========================
+
 INSTALLED_APPS = [
     "corsheaders",
+
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -18,25 +27,35 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "rest_framework",
-    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
 
     "api",
 ]
 
+# =========================
+# MIDDLEWARE
+# =========================
+
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",   # MUST BE FIRST
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+
+    # ❌ DISABLED FOR API (IMPORTANT)
+    # "django.middleware.csrf.CsrfViewMiddleware",
+
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
-
 WSGI_APPLICATION = "backend.wsgi.application"
+
+# =========================
+# DATABASE
+# =========================
 
 DATABASES = {
     "default": {
@@ -45,24 +64,44 @@ DATABASES = {
     }
 }
 
+# =========================
+# REST FRAMEWORK (JWT)
+# =========================
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ),
 }
+
+# =========================
+# INTERNATIONALIZATION
+# =========================
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+# =========================
+# STATIC FILES
+# =========================
+
+STATIC_URL = "/static/"
+
+# =========================
+# CORS (REACT)
+# =========================
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# =========================
+# CSRF (RENDER SAFE)
+# =========================
 
 CSRF_TRUSTED_ORIGINS = [
     "https://rrr-shopkart-frontend.onrender.com",
