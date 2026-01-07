@@ -1,34 +1,41 @@
 from django.http import JsonResponse
-import jwt
-from django.conf import settings
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import AuthenticationFailed
 
-JWT_SECRET = settings.SECRET_KEY
-
-PUBLIC_PATHS = [
-    "/api/login/",
-    "/api/signup/",
-    "/api/health/",
-    "/admin/",
-]
 
 class JWTMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.jwt_authenticator = JWTAuthentication()
 
     def __call__(self, request):
-        # ✅ Allow public routes
-        for path in PUBLIC_PATHS:
-            if request.path.startswith(path):
-                return self.get_response(request)
+        # Skip auth for public routes
+        public_paths = [
+            "/api/login/",
+            "/api/signup/",
+            "/api/health/",
+            "/api/create-checkout-session/",
+        ]
 
-        auth = request.headers.get("Authorization")
-        if not auth:
-            return JsonResponse({"error": "Token missing"}, status=401)
+        if request.path in public_paths:
+            return self.get_response(request)
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return JsonResponse(
+                {"error": "Authorization header missing"},
+                status=401
+            )
 
         try:
-            token = auth.split(" ")[1]
-            jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        except Exception:
-            return JsonResponse({"error": "Invalid token"}, status=401)
+            auth_result = self.jwt_authenticator.authenticate(request)
+            if auth_result is not None:
+                request.user, request.auth = auth_result
+        except AuthenticationFailed:
+            return JsonResponse(
+                {"error": "Invalid or expired token"},
+                status=401
+            )
 
         return self.get_response(request)

@@ -1,12 +1,8 @@
-"""
-Django settings for backend project.
-"""
-
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-5%pn$m%^7cv96lfr26==ceht!$-si1llv(g%4xn9g758l_zenk"
+SECRET_KEY = "dev-secret-key"
 
 DEBUG = False
 
@@ -24,30 +20,21 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    "rest_framework",
     "api",
 ]
 
 # ========================
-# MIDDLEWARE (ORDER MATTERS)
+# MIDDLEWARE
 # ========================
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # MUST BE FIRST
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-
-    # CSRF disabled for API usage
-    # "django.middleware.csrf.CsrfViewMiddleware",
-
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-
-    # JWT middleware MUST BE LAST
-    "api.middleware.JWTMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -81,65 +68,19 @@ DATABASES = {
 }
 
 # ========================
-# AUTH / REST
-# ========================
-
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    )
-}
-
-# ========================
-# INTERNATIONALIZATION
-# ========================
-
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
-
-# ========================
-# STATIC FILES
+# STATIC
 # ========================
 
 STATIC_URL = "static/"
 
 # ========================
-# ✅ CORS CONFIG (FINAL FIX)
+# CORS (REQUIRED)
 # ========================
 
 CORS_ALLOW_ALL_ORIGINS = True
-
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
-CORS_ALLOW_METHODS = [
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS",
-]
-
-# ========================
-# CSRF (REQUIRED FOR RENDER)
-# ========================
-
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5174",
+    "http://localhost:5173",
     "https://rrr-shopkart-frontend.onrender.com",
 ]
-
