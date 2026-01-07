@@ -1,49 +1,40 @@
-from django.http import JsonResponse
-from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-import json
+from django.contrib.auth.models import User
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
 
-def health(request):
-    return JsonResponse({"status": "Backend is alive ✅"})
-
-
-def signup(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=405)
-
-    data = json.loads(request.body)
-    email = data.get("email")
-    password = data.get("password")
-    name = data.get("name")
-
-    if User.objects.filter(username=email).exists():
-        return JsonResponse({"error": "User already exists"}, status=400)
-
-    user = User.objects.create_user(
-        username=email,
-        email=email,
-        password=password,
-        first_name=name
-    )
-
-    return JsonResponse({"message": "Signup successful"})
-
-
+@api_view(["POST"])
+@permission_classes([AllowAny])
 def login(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=405)
+    email = request.data.get("email")
+    password = request.data.get("password")
 
-    data = json.loads(request.body)
-    email = data.get("email")
-    password = data.get("password")
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({"error": "Invalid credentials"}, status=400)
 
-    user = authenticate(username=email, password=password)
+    user = authenticate(username=user.username, password=password)
 
     if not user:
-        return JsonResponse({"error": "Invalid credentials"}, status=401)
+        return Response({"error": "Invalid credentials"}, status=400)
 
-    return JsonResponse({
-        "message": "Login successful",
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        "token": str(refresh.access_token),
         "user_id": user.id,
-        "name": user.first_name,
+        "name": user.username,
+        "email": user.email,
+    })
+
+@api_view(["GET"])
+def orders(request):
+    return Response({
+        "message": "JWT working",
+        "user": request.user.username,
     })
