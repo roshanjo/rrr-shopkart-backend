@@ -1,9 +1,8 @@
 from pathlib import Path
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-key")
+SECRET_KEY = "unsafe-dev-key-change-later"
 
 DEBUG = False
 
@@ -19,6 +18,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "rest_framework",
+    "rest_framework.authtoken",
+
     "api",
 ]
 
@@ -34,6 +35,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "backend.urls"
+
 WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
