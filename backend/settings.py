@@ -2,7 +2,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "unsafe-dev-key-change-later"
+SECRET_KEY = "unsafe-dev-key"
 
 DEBUG = False
 
@@ -18,8 +18,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "rest_framework",
-    "rest_framework.authtoken",
-
     "api",
 ]
 
@@ -35,7 +33,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "backend.urls"
-
 WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
@@ -45,24 +42,9 @@ DATABASES = {
     }
 }
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
-    ),
-}
-
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
-
 STATIC_URL = "static/"
 
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://rrr-shopkart-frontend.onrender.com",
