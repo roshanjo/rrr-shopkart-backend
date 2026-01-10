@@ -19,14 +19,14 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 
 # --------------------------------------------------
-# HOME (KEEP)
+# HOME
 # --------------------------------------------------
 def home(request):
-    return HttpResponse("RRR Shopkart Backend is running 🚀")
+    return HttpResponse("Ai-Kart Backend is running 🚀")
 
 
 # --------------------------------------------------
-# AUTH APIs (NEW – SAFE)
+# AUTH APIs
 # --------------------------------------------------
 @api_view(["POST"])
 def signup(request):
@@ -106,7 +106,7 @@ def login(request):
 
 
 # --------------------------------------------------
-# STRIPE CHECKOUT (KEEP)
+# STRIPE CHECKOUT (FIXED)
 # --------------------------------------------------
 @csrf_exempt
 def create_checkout_session(request):
@@ -130,11 +130,14 @@ def create_checkout_session(request):
                     }
                 ],
                 mode="payment",
-                success_url="https://rrr-shopkart-frontend.onrender.com/success",
-                cancel_url="https://rrr-shopkart-frontend.onrender.com/cancel",
+
+                # ✅ NEW FRONTEND URLS
+                success_url="https://aikart-shop.onrender.com/success",
+                cancel_url="https://aikart-shop.onrender.com/cart",
             )
 
             return JsonResponse({"url": session.url})
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
