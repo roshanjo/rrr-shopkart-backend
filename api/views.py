@@ -16,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 # STRIPE CONFIG
 # --------------------------------------------------
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 
 # --------------------------------------------------
@@ -35,22 +36,13 @@ def signup(request):
     password = request.data.get("password")
 
     if not username or not email or not password:
-        return Response(
-            {"error": "All fields are required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "All fields are required"}, status=400)
 
     if User.objects.filter(username=username).exists():
-        return Response(
-            {"error": "Username already exists"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "Username already exists"}, status=400)
 
     if User.objects.filter(email=email).exists():
-        return Response(
-            {"error": "Email already exists"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": "Email already exists"}, status=400)
 
     user = User.objects.create_user(
         username=username,
@@ -65,7 +57,7 @@ def signup(request):
             "token": str(refresh.access_token),
             "name": user.username,
         },
-        status=status.HTTP_201_CREATED,
+        status=201,
     )
 
 
@@ -74,25 +66,12 @@ def login(request):
     email = request.data.get("email")
     password = request.data.get("password")
 
-    if not email or not password:
-        return Response(
-            {"error": "Email and password are required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     try:
         user = User.objects.get(email=email)
+        if not user.check_password(password):
+            raise User.DoesNotExist
     except User.DoesNotExist:
-        return Response(
-            {"error": "Invalid credentials"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    if not user.check_password(password):
-        return Response(
-            {"error": "Invalid credentials"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+        return Response({"error": "Invalid credentials"}, status=401)
 
     refresh = RefreshToken.for_user(user)
 
@@ -101,44 +80,69 @@ def login(request):
             "token": str(refresh.access_token),
             "name": user.username,
         },
-        status=status.HTTP_200_OK,
+        status=200,
     )
 
 
 # --------------------------------------------------
-# STRIPE CHECKOUT (FIXED)
+# STRIPE CHECKOUT
 # --------------------------------------------------
 @csrf_exempt
 def create_checkout_session(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
-        total = int(data.get("total", 0))
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request"}, status=400)
 
-        try:
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=[
-                    {
-                        "price_data": {
-                            "currency": "inr",
-                            "product_data": {
-                                "name": "Ai-Kart Purchase",
-                            },
-                            "unit_amount": total * 100,
-                        },
-                        "quantity": 1,
-                    }
-                ],
-                mode="payment",
+    data = json.loads(request.body)
+    total = int(data.get("total", 0))
 
-                # ✅ NEW FRONTEND URLS
-                success_url="https://aikart-shop.onrender.com/success",
-                cancel_url="https://aikart-shop.onrender.com/cart",
-            )
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "inr",
+                        "product_data": {"name": "Ai-Kart Purchase"},
+                        "unit_amount": total * 100,
+                    },
+                    "quantity": 1,
+                }
+            ],
+            mode="payment",
+            success_url="https://aikart-shop.onrender.com/success",
+            cancel_url="https://aikart-shop.onrender.com/cart",
+        )
 
-            return JsonResponse({"url": session.url})
+        return JsonResponse({"url": session.url})
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({"error": "Invalid request"}, status=400)
+
+# --------------------------------------------------
+# ✅ STRIPE WEBHOOK (NEW & IMPORTANT)
+# --------------------------------------------------
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET,
+        )
+    except Exception:
+        return HttpResponse(status=400)
+
+    # ✅ PAYMENT CONFIRMED BY STRIPE
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+
+        print("✅ Payment verified:", session["id"])
+        print("💰 Amount:", session["amount_total"])
+
+        # (Next step: save order to database)
+
+    return HttpResponse(status=200)
