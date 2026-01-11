@@ -1,12 +1,12 @@
 from django.contrib import admin
-from .models import User, Order
+from .models import Profile, Order
 
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "email")
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "theme")
+
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "total", "created_at")
-
-
