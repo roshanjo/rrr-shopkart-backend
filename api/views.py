@@ -128,8 +128,8 @@ def create_checkout_session(request):
                 }
             ],
             mode="payment",
-            success_url="https://rrr-shopkart-frontend.onrender.com/success",
-            cancel_url="https://rrr-shopkart-frontend.onrender.com/cart",
+            success_url="https://aikart-shop.onrender.com/success",
+            cancel_url="https://aikart-shop.onrender.com/cart",
         )
 
         return JsonResponse({"url": session.url})
