@@ -10,7 +10,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import status
 
 from .models import Order
 
@@ -47,12 +46,7 @@ def signup(request):
     if User.objects.filter(email=email).exists():
         return Response({"error": "Email already exists"}, status=400)
 
-    user = User.objects.create_user(
-        username=username,
-        email=email,
-        password=password,
-    )
-
+    user = User.objects.create_user(username=username, email=email, password=password)
     refresh = RefreshToken.for_user(user)
 
     return Response(
@@ -90,7 +84,7 @@ def login_user(request):
 
 
 # --------------------------------------------------
-# ✅ JWT PROTECTED ENDPOINT
+# JWT PROTECTED
 # --------------------------------------------------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -110,43 +104,37 @@ def me(request):
 # --------------------------------------------------
 @csrf_exempt
 def create_checkout_session(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request"}, status=400)
-
     data = json.loads(request.body)
+
     total = int(data.get("total", 0))
-    user_id = data.get("user_id")  # 👈 REQUIRED FOR ORDER SAVE
+    user_id = data.get("user_id")
 
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[
-                {
-                    "price_data": {
-                        "currency": "inr",
-                        "product_data": {"name": "RRR Shopkart Purchase"},
-                        "unit_amount": total * 100,
-                    },
-                    "quantity": 1,
-                }
-            ],
-            mode="payment",
-            success_url="https://aikart-shop.onrender.com/success",
-            cancel_url="https://aikart-shop.onrender.com/cart",
-            metadata={
-                "user_id": user_id,
-                "total": total,
-            },
-        )
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "inr",
+                    "product_data": {"name": "RRR Shopkart Purchase"},
+                    "unit_amount": total * 100,
+                },
+                "quantity": 1,
+            }
+        ],
+        mode="payment",
+        success_url="https://aikart-shop.onrender.com/success",
+        cancel_url="https://aikart-shop.onrender.com/cart",
+        metadata={
+            "user_id": user_id,
+            "total": total,
+        },
+    )
 
-        return JsonResponse({"url": session.url})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"url": session.url})
 
 
 # --------------------------------------------------
-# ✅ STRIPE WEBHOOK — SAVE ORDER
+# ✅ STRIPE WEBHOOK — SAVE ORDER (CORRECT WAY)
 # --------------------------------------------------
 @csrf_exempt
 def stripe_webhook(request):
@@ -155,9 +143,7 @@ def stripe_webhook(request):
 
     try:
         event = stripe.Webhook.construct_event(
-            payload,
-            sig_header,
-            STRIPE_WEBHOOK_SECRET,
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except Exception:
         return HttpResponse(status=400)
@@ -165,22 +151,27 @@ def stripe_webhook(request):
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
 
-        user_id = session["metadata"].get("user_id")
-        total = int(session["metadata"].get("total", 0))
+        user_id = session["metadata"]["user_id"]
+        total = int(session["metadata"]["total"])
         stripe_session_id = session["id"]
 
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return HttpResponse(status=400)
+            return HttpResponse(status=200)
 
-        Order.objects.create(
-            user=user,
-            items=session["metadata"],
-            total=total,
+        Order.objects.get_or_create(
             stripe_session_id=stripe_session_id,
+            defaults={
+                "user": user,
+                "items": {
+                    "stripe_session": stripe_session_id,
+                    "amount": total,
+                },
+                "total": total,
+            },
         )
 
-        print("✅ Order saved for user:", user.username)
+        print("✅ Order saved:", stripe_session_id)
 
     return HttpResponse(status=200)
