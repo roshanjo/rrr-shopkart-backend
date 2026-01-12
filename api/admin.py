@@ -9,4 +9,4 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "total", "created_at")
+    list_display = ("id", "user", "total", "created_at", "stripe_session_id")
