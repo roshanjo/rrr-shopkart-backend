@@ -2,17 +2,21 @@ from django.urls import path
 from .views import (
     home,
     signup,
-    login,
+    login_user,
+    me,
     create_checkout_session,
     stripe_webhook,
 )
 
 urlpatterns = [
     path("", home),
-    path("signup/", signup),
-    path("login/", login),
-    path("create-checkout-session/", create_checkout_session),
 
-    # ✅ NEW WEBHOOK ENDPOINT
+    # AUTH
+    path("signup/", signup),
+    path("login/", login_user),
+    path("me/", me),
+
+    # STRIPE
+    path("create-checkout-session/", create_checkout_session),
     path("stripe/webhook/", stripe_webhook),
 ]

@@ -6,10 +6,11 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import status
 
 
 # --------------------------------------------------
@@ -23,7 +24,7 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 # HOME
 # --------------------------------------------------
 def home(request):
-    return HttpResponse("Ai-Kart Backend is running 🚀")
+    return HttpResponse("RRR Shopkart Backend is running 🚀")
 
 
 # --------------------------------------------------
@@ -55,14 +56,15 @@ def signup(request):
     return Response(
         {
             "token": str(refresh.access_token),
-            "name": user.username,
+            "username": user.username,
+            "email": user.email,
         },
         status=201,
     )
 
 
 @api_view(["POST"])
-def login(request):
+def login_user(request):
     email = request.data.get("email")
     password = request.data.get("password")
 
@@ -78,9 +80,26 @@ def login(request):
     return Response(
         {
             "token": str(refresh.access_token),
-            "name": user.username,
+            "username": user.username,
+            "email": user.email,
         },
         status=200,
+    )
+
+
+# --------------------------------------------------
+# ✅ JWT PROTECTED ENDPOINT
+# --------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    user = request.user
+    return Response(
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+        }
     )
 
 
@@ -102,15 +121,15 @@ def create_checkout_session(request):
                 {
                     "price_data": {
                         "currency": "inr",
-                        "product_data": {"name": "Ai-Kart Purchase"},
+                        "product_data": {"name": "RRR Shopkart Purchase"},
                         "unit_amount": total * 100,
                     },
                     "quantity": 1,
                 }
             ],
             mode="payment",
-            success_url="https://aikart-shop.onrender.com/success",
-            cancel_url="https://aikart-shop.onrender.com/cart",
+            success_url="https://rrr-shopkart-frontend.onrender.com/success",
+            cancel_url="https://rrr-shopkart-frontend.onrender.com/cart",
         )
 
         return JsonResponse({"url": session.url})
@@ -120,7 +139,7 @@ def create_checkout_session(request):
 
 
 # --------------------------------------------------
-# ✅ STRIPE WEBHOOK (NEW & IMPORTANT)
+# STRIPE WEBHOOK
 # --------------------------------------------------
 @csrf_exempt
 def stripe_webhook(request):
@@ -136,13 +155,11 @@ def stripe_webhook(request):
     except Exception:
         return HttpResponse(status=400)
 
-    # ✅ PAYMENT CONFIRMED BY STRIPE
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-
         print("✅ Payment verified:", session["id"])
         print("💰 Amount:", session["amount_total"])
 
-        # (Next step: save order to database)
+        # (PART 7: save order)
 
     return HttpResponse(status=200)
