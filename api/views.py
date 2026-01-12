@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 
+from .models import Order
+
 
 # --------------------------------------------------
 # STRIPE CONFIG
@@ -113,6 +115,7 @@ def create_checkout_session(request):
 
     data = json.loads(request.body)
     total = int(data.get("total", 0))
+    user_id = data.get("user_id")  # 👈 REQUIRED FOR ORDER SAVE
 
     try:
         session = stripe.checkout.Session.create(
@@ -130,6 +133,10 @@ def create_checkout_session(request):
             mode="payment",
             success_url="https://aikart-shop.onrender.com/success",
             cancel_url="https://aikart-shop.onrender.com/cart",
+            metadata={
+                "user_id": user_id,
+                "total": total,
+            },
         )
 
         return JsonResponse({"url": session.url})
@@ -139,7 +146,7 @@ def create_checkout_session(request):
 
 
 # --------------------------------------------------
-# STRIPE WEBHOOK
+# ✅ STRIPE WEBHOOK — SAVE ORDER
 # --------------------------------------------------
 @csrf_exempt
 def stripe_webhook(request):
@@ -157,9 +164,23 @@ def stripe_webhook(request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        print("✅ Payment verified:", session["id"])
-        print("💰 Amount:", session["amount_total"])
 
-        # (PART 7: save order)
+        user_id = session["metadata"].get("user_id")
+        total = int(session["metadata"].get("total", 0))
+        stripe_session_id = session["id"]
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return HttpResponse(status=400)
+
+        Order.objects.create(
+            user=user,
+            items=session["metadata"],
+            total=total,
+            stripe_session_id=stripe_session_id,
+        )
+
+        print("✅ Order saved for user:", user.username)
 
     return HttpResponse(status=200)
