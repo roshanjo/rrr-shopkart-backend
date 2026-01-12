@@ -57,6 +57,7 @@ def signup(request):
     return Response(
         {
             "token": str(refresh.access_token),
+            "id": user.id,
             "username": user.username,
             "email": user.email,
         },
@@ -81,6 +82,7 @@ def login_user(request):
     return Response(
         {
             "token": str(refresh.access_token),
+            "id": user.id,
             "username": user.username,
             "email": user.email,
         },
