@@ -10,10 +10,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import Order
-
 
 # --------------------------------------------------
 # STRIPE CONFIG (TEST MODE)
@@ -21,13 +19,11 @@ from .models import Order
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")  # sk_test_...
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
-
 # --------------------------------------------------
 # HOME
 # --------------------------------------------------
 def home(request):
     return HttpResponse("RRR Shopkart Backend is running 🚀")
-
 
 # --------------------------------------------------
 # AUTH APIs
@@ -90,7 +86,6 @@ def login_user(request):
         status=200,
     )
 
-
 # --------------------------------------------------
 # JWT PROTECTED
 # --------------------------------------------------
@@ -106,21 +101,55 @@ def me(request):
         }
     )
 
+# --------------------------------------------------
+# 🛒 USER ORDERS (NEW – SAFE)
+# --------------------------------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_orders(request):
+    orders = Order.objects.filter(user=request.user).order_by("-created_at")
+
+    return Response([
+        {
+            "id": o.id,
+            "total": o.total,
+            "created_at": o.created_at,
+            "stripe_session_id": o.stripe_session_id,
+        }
+        for o in orders
+    ])
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def order_detail(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id, user=request.user)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
+
+    return Response(
+        {
+            "id": order.id,
+            "total": order.total,
+            "items": order.items,
+            "created_at": order.created_at,
+            "stripe_session_id": order.stripe_session_id,
+        }
+    )
 
 # --------------------------------------------------
-# STRIPE CHECKOUT (FIXED)
+# STRIPE CHECKOUT (JWT FIXED)
 # --------------------------------------------------
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_checkout_session(request):
-    data = request.data
-    total = int(data.get("total", 0))
+    total = int(request.data.get("total", 0))
 
     if total <= 0:
         return Response({"error": "Invalid total"}, status=400)
 
-    user = request.user  # ✅ FIXED (JWT USER)
+    user = request.user  # ✅ JWT USER
 
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
@@ -145,7 +174,6 @@ def create_checkout_session(request):
 
     return Response({"url": session.url})
 
-
 # --------------------------------------------------
 # STRIPE WEBHOOK (TEST MODE SAFE)
 # --------------------------------------------------
@@ -166,8 +194,8 @@ def stripe_webhook(request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-
         metadata = session.get("metadata", {})
+
         user_id = metadata.get("user_id")
         total = metadata.get("total")
         stripe_session_id = session.get("id")
@@ -180,16 +208,13 @@ def stripe_webhook(request):
         except User.DoesNotExist:
             return HttpResponse(status=200)
 
-        if Order.objects.filter(stripe_session_id=stripe_session_id).exists():
-            return HttpResponse(status=200)
-
-        Order.objects.create(
-            user=user,
-            items={"stripe_session_id": stripe_session_id},
-            total=int(total),
-            stripe_session_id=stripe_session_id,
-        )
-
-        print("✅ Order saved:", stripe_session_id)
+        if not Order.objects.filter(stripe_session_id=stripe_session_id).exists():
+            Order.objects.create(
+                user=user,
+                total=int(total),
+                stripe_session_id=stripe_session_id,
+                items={"stripe_session_id": stripe_session_id},
+            )
+            print("✅ Order saved:", stripe_session_id)
 
     return HttpResponse(status=200)
