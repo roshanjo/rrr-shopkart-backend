@@ -1,12 +1,5 @@
 from django.urls import path
-from .views import (
-    home,
-    signup,
-    login_user,
-    me,
-    create_checkout_session,
-    stripe_webhook,
-)
+from .views import (home, signup, login_user, me, create_checkout_session, stripe_webhook,)
 
 urlpatterns = [
     path("", home),
@@ -19,4 +12,7 @@ urlpatterns = [
     # STRIPE
     path("create-checkout-session/", create_checkout_session),
     path("stripe/webhook/", stripe_webhook),
+
+    # WEBHOOK
+    path("stripe/webhook/", stripe_webhook)
 ]

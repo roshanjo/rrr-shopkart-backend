@@ -120,6 +120,7 @@ def create_checkout_session(request):
     user_id = data.get("user_id")
 
     if not user_id or total <= 0:
+        print("❌ Checkout rejected:", data)
         return JsonResponse({"error": "Invalid data"}, status=400)
 
     session = stripe.checkout.Session.create(
