@@ -10,3 +10,5 @@ class ProfileAdmin(admin.ModelAdmin):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "total", "created_at", "stripe_session_id")
+    search_fields = ("stripe_session_id", "user__username")
+    list_filter = ("created_at",)

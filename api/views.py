@@ -10,14 +10,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import Order
 
 
 # --------------------------------------------------
-# STRIPE CONFIG
+# STRIPE CONFIG (TEST MODE)
 # --------------------------------------------------
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")  # sk_test_...
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 
@@ -107,21 +108,19 @@ def me(request):
 
 
 # --------------------------------------------------
-# STRIPE CHECKOUT
+# STRIPE CHECKOUT (FIXED)
 # --------------------------------------------------
 @csrf_exempt
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def create_checkout_session(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request"}, status=400)
-
-    data = json.loads(request.body)
-
+    data = request.data
     total = int(data.get("total", 0))
-    user_id = data.get("user_id")
 
-    if not user_id or total <= 0:
-        print("❌ Checkout rejected:", data)
-        return JsonResponse({"error": "Invalid data"}, status=400)
+    if total <= 0:
+        return Response({"error": "Invalid total"}, status=400)
+
+    user = request.user  # ✅ FIXED (JWT USER)
 
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
@@ -139,16 +138,16 @@ def create_checkout_session(request):
         success_url="https://aikart-shop.onrender.com/success",
         cancel_url="https://aikart-shop.onrender.com/cart",
         metadata={
-            "user_id": str(user_id),
+            "user_id": str(user.id),
             "total": str(total),
         },
     )
 
-    return JsonResponse({"url": session.url})
+    return Response({"url": session.url})
 
 
 # --------------------------------------------------
-# ✅ STRIPE WEBHOOK — FINAL & SAFE
+# STRIPE WEBHOOK (TEST MODE SAFE)
 # --------------------------------------------------
 @csrf_exempt
 def stripe_webhook(request):
@@ -161,11 +160,8 @@ def stripe_webhook(request):
             sig_header,
             STRIPE_WEBHOOK_SECRET,
         )
-    except stripe.error.SignatureVerificationError:
-        print("❌ Invalid Stripe signature")
-        return HttpResponse(status=400)
     except Exception as e:
-        print("❌ Webhook error:", str(e))
+        print("❌ Webhook error:", e)
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
@@ -176,33 +172,24 @@ def stripe_webhook(request):
         total = metadata.get("total")
         stripe_session_id = session.get("id")
 
-        # 🚨 Safety checks (NO 500 errors)
         if not user_id or not total:
-            print("❌ Missing metadata:", metadata)
             return HttpResponse(status=200)
 
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            print("❌ User not found:", user_id)
             return HttpResponse(status=200)
 
-        # ✅ Prevent duplicate orders (Stripe retries)
         if Order.objects.filter(stripe_session_id=stripe_session_id).exists():
-            print("⚠️ Order already exists:", stripe_session_id)
             return HttpResponse(status=200)
 
         Order.objects.create(
             user=user,
-            items={
-                "stripe_session_id": stripe_session_id,
-            },
+            items={"stripe_session_id": stripe_session_id},
             total=int(total),
             stripe_session_id=stripe_session_id,
         )
 
         print("✅ Order saved:", stripe_session_id)
-        print("WEBHOOK SECRET:", STRIPE_WEBHOOK_SECRET)
-
 
     return HttpResponse(status=200)
