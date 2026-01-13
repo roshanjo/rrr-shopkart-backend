@@ -201,5 +201,7 @@ def stripe_webhook(request):
         )
 
         print("✅ Order saved:", stripe_session_id)
+        print("WEBHOOK SECRET:", STRIPE_WEBHOOK_SECRET)
+
 
     return HttpResponse(status=200)
