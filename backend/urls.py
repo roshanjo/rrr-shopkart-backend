@@ -11,5 +11,4 @@ urlpatterns = [
     path("admin/", admin.site.urls),   # ✅ ADD THIS
     path("api/", include("api.urls")),
     path("api/stripe/webhook/", stripe_webhook),
-    path("shop.webhook/", stripe_webhook),  # ✅ ADD THIS
 ]
