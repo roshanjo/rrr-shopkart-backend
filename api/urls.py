@@ -8,6 +8,7 @@ from .views import (
     stripe_webhook,
     my_orders,
     order_detail,
+    order_invoice,
 )
 
 urlpatterns = [
@@ -25,4 +26,6 @@ urlpatterns = [
     # ORDERS
     path("orders/", my_orders),
     path("orders/<int:order_id>/", order_detail),
+    path("orders/<int:order_id>/invoice/", order_invoice),
+
 ]

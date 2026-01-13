@@ -12,6 +12,11 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Order
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from django.http import FileResponse
+
 
 # --------------------------------------------------
 # STRIPE CONFIG (TEST MODE)
@@ -136,6 +141,43 @@ def order_detail(request, order_id):
             "stripe_session_id": order.stripe_session_id,
         }
     )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def order_invoice(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id, user=request.user)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(50, 800, "RRR Shopkart - Invoice")
+
+    pdf.setFont("Helvetica", 12)
+    pdf.drawString(50, 760, f"Order ID: {order.id}")
+    pdf.drawString(50, 740, f"Customer: {order.user.username}")
+    pdf.drawString(50, 720, f"Email: {order.user.email}")
+    pdf.drawString(50, 700, f"Date: {order.created_at.strftime('%d %b %Y %H:%M')}")
+
+    pdf.drawString(50, 660, f"Total Paid: ₹{order.total}")
+    pdf.drawString(50, 640, "Payment Status: PAID (Stripe Test Mode)")
+
+    pdf.drawString(50, 600, "Thank you for shopping with RRR Shopkart ❤️")
+
+    pdf.showPage()
+    pdf.save()
+
+    buffer.seek(0)
+
+    return FileResponse(
+        buffer,
+        as_attachment=True,
+        filename=f"invoice_order_{order.id}.pdf",
+    )
+
 
 # --------------------------------------------------
 # STRIPE CHECKOUT (JWT FIXED)
