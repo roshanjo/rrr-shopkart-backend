@@ -28,6 +28,7 @@ urlpatterns = [
     path("orders/", my_orders),
     path("orders/<int:order_id>/", order_detail),
     path("orders/<int:order_id>/invoice/", order_invoice),
-    path("api/address/", address_view),
 
+    # ADDRESS ✅
+    path("address/", address_view),
 ]
