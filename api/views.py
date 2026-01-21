@@ -16,7 +16,7 @@ import io
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from django.http import FileResponse
-
+from .models import Address
 
 # --------------------------------------------------
 # STRIPE CONFIG (TEST MODE)
@@ -260,3 +260,41 @@ def stripe_webhook(request):
             print("✅ Order saved:", stripe_session_id)
 
     return HttpResponse(status=200)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def address_view(request):
+    user = request.user
+
+    # GET saved address
+    if request.method == "GET":
+        address = Address.objects.filter(user=user).first()
+        if not address:
+            return Response(None)
+
+        return Response({
+            "fullName": address.full_name,
+            "phone": address.phone,
+            "street": address.street,
+            "city": address.city,
+            "state": address.state,
+            "pincode": address.pincode,
+        })
+
+    # SAVE / UPDATE address
+    if request.method == "POST":
+        address, created = Address.objects.update_or_create(
+            user=user,
+            defaults={
+                "full_name": request.data.get("fullName"),
+                "phone": request.data.get("phone"),
+                "street": request.data.get("street"),
+                "city": request.data.get("city"),
+                "state": request.data.get("state"),
+                "pincode": request.data.get("pincode"),
+            }
+        )
+
+        return Response({"id": address.id})
+

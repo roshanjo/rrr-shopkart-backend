@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import address_view
 from .views import (
     home,
     signup,
@@ -27,5 +28,6 @@ urlpatterns = [
     path("orders/", my_orders),
     path("orders/<int:order_id>/", order_detail),
     path("orders/<int:order_id>/invoice/", order_invoice),
+    path("api/address/", address_view),
 
 ]
