@@ -1,10 +1,18 @@
 const router = require("express").Router();
 const Address = require("../models/Address");
 
-// Save address
+/* =========================
+   TEST ROUTE (IMPORTANT)
+   ========================= */
+router.get("/test", (req, res) => {
+  res.send("ADDRESS ROUTE WORKING");
+});
+
+/* =========================
+   SAVE ADDRESS
+   ========================= */
 router.post("/", async (req, res) => {
   try {
-    // 🔍 DEBUG (you can remove later)
     console.log("ADDRESS BODY:", req.body);
 
     if (!req.body.userId) {
@@ -29,7 +37,9 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Get user address
+/* =========================
+   GET USER ADDRESS
+   ========================= */
 router.get("/:userId", async (req, res) => {
   try {
     const address = await Address.findOne({ userId: req.params.userId });

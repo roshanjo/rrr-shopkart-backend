@@ -12,7 +12,7 @@ app.use(express.json());
 // routes
 const addressRoute = require("./routes/address");
 
-// 🔥 THIS LINE WAS MISSING
+// 🔥 REQUIRED
 app.use("/api/address", addressRoute);
 
 // existing routes (DO NOT REMOVE)
