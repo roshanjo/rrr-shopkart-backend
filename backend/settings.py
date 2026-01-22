@@ -17,7 +17,7 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,rrr-shopkart-backend.onrender.com"
+    "localhost,127.0.0.1,rrr-shopkart-backend.onrender.com,aikart-shop.onrender.com"
 ).split(",")
 
 # --------------------------------------------------
@@ -136,7 +136,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://rrr-shopkart-frontend.onrender.com",
+    "https://aikart-shop.onrender.com",
+    "https://rrr-shopkart-backend.onrender.com",
     "http://localhost:5174",
 ]
 
