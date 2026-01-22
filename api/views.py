@@ -63,7 +63,6 @@ def signup(request):
         "avatar": user.profile.avatar
     }, status=201)
 
-
 @api_view(["POST"])
 def login_user(request):
     email = request.data.get("email")
@@ -95,19 +94,17 @@ def login_user(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    user = request.user
-    profile, _ = Profile.objects.get_or_create(user=user)
-
+    profile, _ = Profile.objects.get_or_create(user=request.user)
     return Response({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
+        "id": request.user.id,
+        "username": request.user.username,
+        "email": request.user.email,
         "avatar": profile.avatar,
         "theme": profile.theme
     })
 
 # ------------------ UPDATE PROFILE ------------------
-@api_view(["PUT"])
+@api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
     user = request.user
@@ -122,7 +119,7 @@ def update_profile(request):
         user.username = username
 
     if password:
-        user.set_password(password)  # 🔥 THIS WAS MISSING
+        user.set_password(password)  # ✅ correct way
 
     user.save()
 
@@ -135,13 +132,10 @@ def update_profile(request):
     profile.save()
 
     return Response({
-        "id": user.id,
         "username": user.username,
-        "email": user.email,
         "avatar": profile.avatar,
         "theme": profile.theme
     })
-
 
 # ------------------ STRIPE CHECKOUT ------------------
 @api_view(["POST"])
@@ -184,10 +178,8 @@ def stripe_webhook(request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        user_id = session["metadata"]["user_id"]
-
         Order.objects.create(
-            user_id=user_id,
+            user_id=session["metadata"]["user_id"],
             total=session["amount_total"] // 100,
             stripe_session_id=session["id"],
             items=[]
@@ -200,15 +192,12 @@ def stripe_webhook(request):
 @permission_classes([IsAuthenticated])
 def my_orders(request):
     orders = Order.objects.filter(user=request.user).order_by("-created_at")
-    return Response([
-        {
-            "id": o.id,
-            "total": o.total,
-            "created_at": o.created_at,
-            "stripe_session_id": o.stripe_session_id
-        }
-        for o in orders
-    ])
+    return Response([{
+        "id": o.id,
+        "total": o.total,
+        "created_at": o.created_at,
+        "stripe_session_id": o.stripe_session_id
+    } for o in orders])
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -229,13 +218,11 @@ def order_invoice(request, order_id):
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
-
     pdf.drawString(50, 800, "RRR Shopkart - Invoice")
     pdf.drawString(50, 760, f"Order ID: {order.id}")
     pdf.drawString(50, 740, f"Customer: {order.user.username}")
     pdf.drawString(50, 720, f"Email: {order.user.email}")
     pdf.drawString(50, 700, f"Total Paid: ₹{order.total}")
-
     pdf.showPage()
     pdf.save()
     buffer.seek(0)
@@ -246,39 +233,21 @@ def order_invoice(request, order_id):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
-    user = request.user
-
-    # GET: return saved address (single)
     if request.method == "GET":
-        address = Address.objects.filter(user=user).first()
-        if not address:
-            return Response({}, status=200)
+        addresses = Address.objects.filter(user=request.user)
+        return Response([{
+            "id": a.id,
+            "line1": a.line1,
+            "city": a.city,
+            "state": a.state,
+            "pincode": a.pincode
+        } for a in addresses])
 
-        return Response({
-            "full_name": getattr(address, "full_name", ""),
-            "phone": getattr(address, "phone", ""),
-            "address": getattr(address, "address", address.line1 if hasattr(address, "line1") else ""),
-            "city": address.city,
-            "state": address.state,
-            "pincode": address.pincode,
-        })
-
-    # POST: create or update
-    data = request.data
-    address, _ = Address.objects.get_or_create(user=user)
-
-    # Map frontend → backend safely
-    address.line1 = data.get("address") or data.get("line1") or ""
-    address.city = data.get("city", "")
-    address.state = data.get("state", "")
-    address.pincode = data.get("pincode", "")
-
-    # Optional fields (only if model has them)
-    if hasattr(address, "full_name"):
-        address.full_name = data.get("full_name", "")
-    if hasattr(address, "phone"):
-        address.phone = data.get("phone", "")
-
-    address.save()
-
-    return Response({"message": "Address saved successfully"}, status=200)
+    Address.objects.create(
+        user=request.user,
+        line1=request.data.get("line1"),
+        city=request.data.get("city"),
+        state=request.data.get("state"),
+        pincode=request.data.get("pincode")
+    )
+    return Response({"message": "Address saved"})
