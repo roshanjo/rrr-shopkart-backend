@@ -115,14 +115,24 @@ def update_profile(request):
     theme = request.data.get("theme")
     password = request.data.get("password")
 
-    if username:
+    # ---- USERNAME ----
+    if username and username != user.username:
+        if User.objects.filter(username=username).exclude(id=user.id).exists():
+            return Response(
+                {"error": "Username already taken"},
+                status=400
+            )
         user.username = username
 
+    # ---- PASSWORD ----
+    password_changed = False
     if password:
-        user.set_password(password)  # ✅ correct way
+        user.set_password(password)
+        password_changed = True
 
     user.save()
 
+    # ---- PROFILE ----
     if avatar:
         profile.avatar = avatar
 
@@ -132,10 +142,14 @@ def update_profile(request):
     profile.save()
 
     return Response({
+        "id": user.id,
         "username": user.username,
+        "email": user.email,
         "avatar": profile.avatar,
-        "theme": profile.theme
+        "theme": profile.theme,
+        "password_changed": password_changed
     })
+
 
 # ------------------ STRIPE CHECKOUT ------------------
 @api_view(["POST"])
