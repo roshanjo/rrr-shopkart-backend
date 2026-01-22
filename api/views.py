@@ -249,19 +249,44 @@ def order_invoice(request, order_id):
 def address_view(request):
     if request.method == "GET":
         addresses = Address.objects.filter(user=request.user)
-        return Response([{
-            "id": a.id,
-            "line1": a.line1,
-            "city": a.city,
-            "state": a.state,
-            "pincode": a.pincode
-        } for a in addresses])
+
+        if not addresses.exists():
+            return Response([], status=200)
+
+        return Response([
+            {
+                "id": a.id,
+                "line1": a.line1,
+                "city": a.city,
+                "state": a.state,
+                "pincode": a.pincode
+            }
+            for a in addresses
+        ])
+
+    # -------- POST --------
+    line1 = request.data.get("line1")
+    city = request.data.get("city")
+    state = request.data.get("state")
+    pincode = request.data.get("pincode")
+
+    # ✅ HARD VALIDATION (prevents 500)
+    if not all([line1, city, state, pincode]):
+        return Response(
+            {"error": "All address fields are required"},
+            status=400
+        )
 
     Address.objects.create(
         user=request.user,
-        line1=request.data.get("line1"),
-        city=request.data.get("city"),
-        state=request.data.get("state"),
-        pincode=request.data.get("pincode")
+        line1=line1,
+        city=city,
+        state=state,
+        pincode=pincode
     )
-    return Response({"message": "Address saved"})
+
+    return Response(
+        {"message": "Address saved successfully"},
+        status=201
+    )
+
