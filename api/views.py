@@ -116,10 +116,15 @@ def update_profile(request):
     username = request.data.get("username")
     avatar = request.data.get("avatar")
     theme = request.data.get("theme")
+    password = request.data.get("password")
 
     if username:
         user.username = username
-        user.save()
+
+    if password:
+        user.set_password(password)  # 🔥 THIS WAS MISSING
+
+    user.save()
 
     if avatar:
         profile.avatar = avatar
@@ -130,10 +135,13 @@ def update_profile(request):
     profile.save()
 
     return Response({
+        "id": user.id,
         "username": user.username,
+        "email": user.email,
         "avatar": profile.avatar,
         "theme": profile.theme
     })
+
 
 # ------------------ STRIPE CHECKOUT ------------------
 @api_view(["POST"])
