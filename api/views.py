@@ -1,6 +1,8 @@
 import os
 import stripe
 import io
+import json
+
 from django.http import HttpResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
@@ -89,7 +91,6 @@ def login_user(request):
         "avatar": profile.avatar
     })
 
-
 # ------------------ ME ------------------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -104,7 +105,6 @@ def me(request):
         "avatar": profile.avatar,
         "theme": profile.theme
     })
-
 
 # ------------------ UPDATE PROFILE ------------------
 @api_view(["PUT"])
@@ -134,6 +134,58 @@ def update_profile(request):
         "avatar": profile.avatar,
         "theme": profile.theme
     })
+
+# ------------------ STRIPE CHECKOUT ------------------
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_checkout_session(request):
+    total = int(request.data.get("total", 0))
+    if total <= 0:
+        return Response({"error": "Invalid total"}, status=400)
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "inr",
+                "product_data": {"name": "RRR Shopkart Purchase"},
+                "unit_amount": total * 100,
+            },
+            "quantity": 1
+        }],
+        mode="payment",
+        success_url="https://aikart-shop.onrender.com/success",
+        cancel_url="https://aikart-shop.onrender.com/cart",
+        metadata={"user_id": request.user.id}
+    )
+
+    return Response({"url": session.url})
+
+# ------------------ STRIPE WEBHOOK ------------------
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except Exception:
+        return HttpResponse(status=400)
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session["metadata"]["user_id"]
+
+        Order.objects.create(
+            user_id=user_id,
+            total=session["amount_total"] // 100,
+            stripe_session_id=session["id"],
+            items=[]
+        )
+
+    return HttpResponse(status=200)
 
 # ------------------ ORDERS ------------------
 @api_view(["GET"])
@@ -181,3 +233,29 @@ def order_invoice(request, order_id):
     buffer.seek(0)
 
     return FileResponse(buffer, as_attachment=True, filename=f"invoice_{order.id}.pdf")
+
+# ------------------ ADDRESS ------------------
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def address_view(request):
+    if request.method == "GET":
+        addresses = Address.objects.filter(user=request.user)
+        return Response([
+            {
+                "id": a.id,
+                "line1": a.line1,
+                "city": a.city,
+                "state": a.state,
+                "pincode": a.pincode
+            }
+            for a in addresses
+        ])
+
+    Address.objects.create(
+        user=request.user,
+        line1=request.data.get("line1"),
+        city=request.data.get("city"),
+        state=request.data.get("state"),
+        pincode=request.data.get("pincode"),
+    )
+    return Response({"message": "Address saved"})
