@@ -238,24 +238,39 @@ def order_invoice(request, order_id):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
-    if request.method == "GET":
-        addresses = Address.objects.filter(user=request.user)
-        return Response([
-            {
-                "id": a.id,
-                "line1": a.line1,
-                "city": a.city,
-                "state": a.state,
-                "pincode": a.pincode
-            }
-            for a in addresses
-        ])
+    user = request.user
 
-    Address.objects.create(
-        user=request.user,
-        line1=request.data.get("line1"),
-        city=request.data.get("city"),
-        state=request.data.get("state"),
-        pincode=request.data.get("pincode"),
-    )
-    return Response({"message": "Address saved"})
+    # GET: return saved address (single)
+    if request.method == "GET":
+        address = Address.objects.filter(user=user).first()
+        if not address:
+            return Response({}, status=200)
+
+        return Response({
+            "full_name": getattr(address, "full_name", ""),
+            "phone": getattr(address, "phone", ""),
+            "address": getattr(address, "address", address.line1 if hasattr(address, "line1") else ""),
+            "city": address.city,
+            "state": address.state,
+            "pincode": address.pincode,
+        })
+
+    # POST: create or update
+    data = request.data
+    address, _ = Address.objects.get_or_create(user=user)
+
+    # Map frontend → backend safely
+    address.line1 = data.get("address") or data.get("line1") or ""
+    address.city = data.get("city", "")
+    address.state = data.get("state", "")
+    address.pincode = data.get("pincode", "")
+
+    # Optional fields (only if model has them)
+    if hasattr(address, "full_name"):
+        address.full_name = data.get("full_name", "")
+    if hasattr(address, "phone"):
+        address.phone = data.get("phone", "")
+
+    address.save()
+
+    return Response({"message": "Address saved successfully"}, status=200)
