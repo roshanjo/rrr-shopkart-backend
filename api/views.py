@@ -243,6 +243,7 @@ def order_invoice(request, order_id):
     )
 
 # ------------------ ADDRESS ------------------
+@csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
