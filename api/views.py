@@ -1,7 +1,6 @@
 import os
 import stripe
 import io
-import json
 
 from django.http import HttpResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -115,24 +114,16 @@ def update_profile(request):
     theme = request.data.get("theme")
     password = request.data.get("password")
 
-    # ---- USERNAME ----
     if username and username != user.username:
         if User.objects.filter(username=username).exclude(id=user.id).exists():
-            return Response(
-                {"error": "Username already taken"},
-                status=400
-            )
+            return Response({"error": "Username already taken"}, status=400)
         user.username = username
 
-    # ---- PASSWORD ----
-    password_changed = False
     if password:
         user.set_password(password)
-        password_changed = True
 
     user.save()
 
-    # ---- PROFILE ----
     if avatar:
         profile.avatar = avatar
 
@@ -146,10 +137,8 @@ def update_profile(request):
         "username": user.username,
         "email": user.email,
         "avatar": profile.avatar,
-        "theme": profile.theme,
-        "password_changed": password_changed
+        "theme": profile.theme
     })
-
 
 # ------------------ STRIPE CHECKOUT ------------------
 @api_view(["POST"])
@@ -177,81 +166,12 @@ def create_checkout_session(request):
 
     return Response({"url": session.url})
 
-# ------------------ STRIPE WEBHOOK ------------------
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
-    except Exception:
-        return HttpResponse(status=400)
-
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        Order.objects.create(
-            user_id=session["metadata"]["user_id"],
-            total=session["amount_total"] // 100,
-            stripe_session_id=session["id"],
-            items=[]
-        )
-
-    return HttpResponse(status=200)
-
-# ------------------ ORDERS ------------------
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def my_orders(request):
-    orders = Order.objects.filter(user=request.user).order_by("-created_at")
-    return Response([{
-        "id": o.id,
-        "total": o.total,
-        "created_at": o.created_at,
-        "stripe_session_id": o.stripe_session_id
-    } for o in orders])
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def order_detail(request, order_id):
-    order = Order.objects.get(id=order_id, user=request.user)
-    return Response({
-        "id": order.id,
-        "total": order.total,
-        "items": order.items,
-        "created_at": order.created_at,
-        "stripe_session_id": order.stripe_session_id
-    })
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def order_invoice(request, order_id):
-    order = Order.objects.get(id=order_id, user=request.user)
-
-    buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    pdf.drawString(50, 800, "RRR Shopkart - Invoice")
-    pdf.drawString(50, 760, f"Order ID: {order.id}")
-    pdf.drawString(50, 740, f"Customer: {order.user.username}")
-    pdf.drawString(50, 720, f"Email: {order.user.email}")
-    pdf.drawString(50, 700, f"Total Paid: ₹{order.total}")
-    pdf.showPage()
-    pdf.save()
-    buffer.seek(0)
-
-    return FileResponse(buffer, as_attachment=True, filename=f"invoice_{order.id}.pdf")
-
 # ------------------ ADDRESS ------------------
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
     if request.method == "GET":
         addresses = Address.objects.filter(user=request.user)
-
-        if not addresses.exists():
-            return Response([], status=200)
 
         return Response([
             {
@@ -262,7 +182,7 @@ def address_view(request):
                 "pincode": a.pincode
             }
             for a in addresses
-        ])
+        ], status=200)
 
     # -------- POST --------
     line1 = request.data.get("line1")
@@ -270,14 +190,13 @@ def address_view(request):
     state = request.data.get("state")
     pincode = request.data.get("pincode")
 
-    # ✅ HARD VALIDATION (prevents 500)
     if not all([line1, city, state, pincode]):
         return Response(
             {"error": "All address fields are required"},
             status=400
         )
 
-    Address.objects.create(
+    address = Address.objects.create(
         user=request.user,
         line1=line1,
         city=city,
@@ -285,8 +204,4 @@ def address_view(request):
         pincode=pincode
     )
 
-    return Response(
-        {"message": "Address saved successfully"},
-        status=201
-    )
-
+    return Response({"id": address.id}, status=201)
