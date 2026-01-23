@@ -205,3 +205,27 @@ def address_view(request):
     )
 
     return Response({"id": address.id}, status=201)
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError:
+        return HttpResponse(status=400)
+
+    # Handle successful payment
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        # You can fulfill the order here later
+
+    return HttpResponse(status=200)
+
