@@ -229,3 +229,17 @@ def stripe_webhook(request):
 
     return HttpResponse(status=200)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_orders(request):
+    orders = Order.objects.filter(user=request.user).order_by("-id")
+
+    return Response([
+        {
+            "id": o.id,
+            "total": o.total,
+            "status": o.status,
+            "created": o.created_at,
+        }
+        for o in orders
+    ])
