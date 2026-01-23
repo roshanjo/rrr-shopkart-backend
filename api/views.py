@@ -166,13 +166,88 @@ def create_checkout_session(request):
 
     return Response({"url": session.url})
 
+# ------------------ STRIPE WEBHOOK ------------------
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except Exception:
+        return HttpResponse(status=400)
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+
+        Order.objects.create(
+            user_id=session["metadata"]["user_id"],
+            total=session["amount_total"] // 100,
+            stripe_session_id=session["id"],
+            items=[]
+        )
+
+    return HttpResponse(status=200)
+
+# ------------------ ORDERS ------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_orders(request):
+    orders = Order.objects.filter(user=request.user).order_by("-created_at")
+    return Response([
+        {
+            "id": o.id,
+            "total": o.total,
+            "created_at": o.created_at,
+            "stripe_session_id": o.stripe_session_id,
+        }
+        for o in orders
+    ])
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def order_detail(request, order_id):
+    order = Order.objects.get(id=order_id, user=request.user)
+    return Response({
+        "id": order.id,
+        "total": order.total,
+        "items": order.items,
+        "created_at": order.created_at,
+        "stripe_session_id": order.stripe_session_id,
+    })
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def order_invoice(request, order_id):
+    order = Order.objects.get(id=order_id, user=request.user)
+
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+
+    pdf.drawString(50, 800, "RRR Shopkart - Invoice")
+    pdf.drawString(50, 770, f"Order ID: {order.id}")
+    pdf.drawString(50, 750, f"Customer: {order.user.username}")
+    pdf.drawString(50, 730, f"Email: {order.user.email}")
+    pdf.drawString(50, 710, f"Total Paid: ₹{order.total}")
+
+    pdf.showPage()
+    pdf.save()
+    buffer.seek(0)
+
+    return FileResponse(
+        buffer,
+        as_attachment=True,
+        filename=f"invoice_{order.id}.pdf"
+    )
+
 # ------------------ ADDRESS ------------------
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
     if request.method == "GET":
         addresses = Address.objects.filter(user=request.user)
-
         return Response([
             {
                 "id": a.id,
@@ -182,64 +257,18 @@ def address_view(request):
                 "pincode": a.pincode
             }
             for a in addresses
-        ], status=200)
+        ])
 
-    # -------- POST --------
-    line1 = request.data.get("line1")
-    city = request.data.get("city")
-    state = request.data.get("state")
-    pincode = request.data.get("pincode")
-
-    if not all([line1, city, state, pincode]):
-        return Response(
-            {"error": "All address fields are required"},
-            status=400
-        )
+    data = request.data
+    if not all([data.get("line1"), data.get("city"), data.get("state"), data.get("pincode")]):
+        return Response({"error": "All address fields are required"}, status=400)
 
     address = Address.objects.create(
         user=request.user,
-        line1=line1,
-        city=city,
-        state=state,
-        pincode=pincode
+        line1=data["line1"],
+        city=data["city"],
+        state=data["state"],
+        pincode=data["pincode"]
     )
 
     return Response({"id": address.id}, status=201)
-
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload,
-            sig_header,
-            STRIPE_WEBHOOK_SECRET
-        )
-    except ValueError:
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError:
-        return HttpResponse(status=400)
-
-    # Handle successful payment
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        # You can fulfill the order here later
-
-    return HttpResponse(status=200)
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def my_orders(request):
-    orders = Order.objects.filter(user=request.user).order_by("-id")
-
-    return Response([
-        {
-            "id": o.id,
-            "total": o.total,
-            "status": o.status,
-            "created": o.created_at,
-        }
-        for o in orders
-    ])
