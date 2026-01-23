@@ -247,29 +247,57 @@ def order_invoice(request, order_id):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
+    # -------- GET --------
     if request.method == "GET":
-        addresses = Address.objects.filter(user=request.user)
-        return Response([
-            {
-                "id": a.id,
-                "line1": a.line1,
-                "city": a.city,
-                "state": a.state,
-                "pincode": a.pincode
-            }
-            for a in addresses
-        ])
+        try:
+            address = Address.objects.get(user=request.user)
+            return Response({
+                "id": address.id,
+                "full_name": address.full_name,
+                "phone": address.phone,
+                "street": address.street,
+                "city": address.city,
+                "state": address.state,
+                "pincode": address.pincode,
+            })
+        except Address.DoesNotExist:
+            return Response({}, status=200)
 
+    # -------- POST --------
     data = request.data
-    if not all([data.get("line1"), data.get("city"), data.get("state"), data.get("pincode")]):
-        return Response({"error": "All address fields are required"}, status=400)
 
-    address = Address.objects.create(
+    required_fields = [
+        "full_name",
+        "phone",
+        "street",
+        "city",
+        "state",
+        "pincode",
+    ]
+
+    if not all(data.get(field) for field in required_fields):
+        return Response(
+            {"error": "All address fields are required"},
+            status=400
+        )
+
+    # ✅ OneToOne-safe save
+    address, created = Address.objects.update_or_create(
         user=request.user,
-        line1=data["line1"],
-        city=data["city"],
-        state=data["state"],
-        pincode=data["pincode"]
+        defaults={
+            "full_name": data["full_name"],
+            "phone": data["phone"],
+            "street": data["street"],
+            "city": data["city"],
+            "state": data["state"],
+            "pincode": data["pincode"],
+        }
     )
 
-    return Response({"id": address.id}, status=201)
+    return Response(
+        {
+            "id": address.id,
+            "created": created
+        },
+        status=201
+    )
