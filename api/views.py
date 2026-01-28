@@ -1,10 +1,11 @@
 import os
-import stripe
 import io
+import stripe
 
 from django.http import HttpResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
+from django.conf import settings
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -16,15 +17,19 @@ from reportlab.pdfgen import canvas
 
 from .models import Order, Address, Profile
 
-# ------------------ STRIPE ------------------
+
+# ================== STRIPE CONFIG ==================
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
-# ------------------ HOME ------------------
+
+# ================== HOME ==================
 def home(request):
     return HttpResponse("RRR Shopkart Backend is running 🚀")
 
-# ------------------ AUTH ------------------
+
+# ================== AUTH ==================
 @api_view(["POST"])
 def signup(request):
     username = request.data.get("username")
@@ -62,6 +67,7 @@ def signup(request):
         "avatar": user.profile.avatar
     }, status=201)
 
+
 @api_view(["POST"])
 def login_user(request):
     email = request.data.get("email")
@@ -89,7 +95,8 @@ def login_user(request):
         "avatar": profile.avatar
     })
 
-# ------------------ ME ------------------
+
+# ================== ME ==================
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
@@ -102,34 +109,29 @@ def me(request):
         "theme": profile.theme
     })
 
-# ------------------ UPDATE PROFILE ------------------
+
+# ================== UPDATE PROFILE ==================
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
     user = request.user
     profile, _ = Profile.objects.get_or_create(user=user)
 
-    username = request.data.get("username")
-    avatar = request.data.get("avatar")
-    theme = request.data.get("theme")
-    password = request.data.get("password")
-
-    if username and username != user.username:
-        if User.objects.filter(username=username).exclude(id=user.id).exists():
+    if "username" in request.data:
+        if User.objects.filter(username=request.data["username"]).exclude(id=user.id).exists():
             return Response({"error": "Username already taken"}, status=400)
-        user.username = username
+        user.username = request.data["username"]
 
-    if password:
-        user.set_password(password)
+    if "password" in request.data:
+        user.set_password(request.data["password"])
+
+    if "avatar" in request.data:
+        profile.avatar = request.data["avatar"]
+
+    if "theme" in request.data:
+        profile.theme = request.data["theme"]
 
     user.save()
-
-    if avatar:
-        profile.avatar = avatar
-
-    if theme:
-        profile.theme = theme
-
     profile.save()
 
     return Response({
@@ -140,33 +142,50 @@ def update_profile(request):
         "theme": profile.theme
     })
 
-# ------------------ STRIPE CHECKOUT ------------------
+
+# ================== STRIPE CHECKOUT ==================
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_checkout_session(request):
-    total = int(request.data.get("total", 0))
-    if total <= 0:
-        return Response({"error": "Invalid total"}, status=400)
+    try:
+        total = int(request.data.get("total", 0))
 
-    session = stripe.checkout.Session.create(
-        payment_method_types=["card"],
-        line_items=[{
-            "price_data": {
-                "currency": "inr",
-                "product_data": {"name": "RRR Shopkart Purchase"},
-                "unit_amount": total * 100,
-            },
-            "quantity": 1
-        }],
-        mode="payment",
-        success_url="https://aikart-shop.onrender.com/success",
-        cancel_url="https://aikart-shop.onrender.com/cart",
-        metadata={"user_id": request.user.id}
-    )
+        if total <= 0:
+            return Response({"error": "Invalid total"}, status=400)
 
-    return Response({"url": session.url})
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "inr",
+                        "product_data": {
+                            "name": "RRR Shopkart Purchase"
+                        },
+                        "unit_amount": total * 100,
+                    },
+                    "quantity": 1
+                }
+            ],
+            success_url=f"{FRONTEND_URL}/success",
+            cancel_url=f"{FRONTEND_URL}/cart",
+            metadata={
+                "user_id": str(request.user.id)
+            }
+        )
 
-# ------------------ STRIPE WEBHOOK ------------------
+        return Response({"url": session.url})
+
+    except Exception as e:
+        print("STRIPE CHECKOUT ERROR:", str(e))
+        return Response(
+            {"error": "Failed to create checkout session"},
+            status=500
+        )
+
+
+# ================== STRIPE WEBHOOK ==================
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
@@ -174,24 +193,31 @@ def stripe_webhook(request):
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
+            payload,
+            sig_header,
+            STRIPE_WEBHOOK_SECRET
         )
-    except Exception:
+    except Exception as e:
+        print("WEBHOOK ERROR:", e)
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
 
-        Order.objects.create(
-            user_id=session["metadata"]["user_id"],
-            total=session["amount_total"] // 100,
-            stripe_session_id=session["id"],
-            items=[]
-        )
+        user_id = session.get("metadata", {}).get("user_id")
+
+        if user_id:
+            Order.objects.create(
+                user_id=user_id,
+                total=session["amount_total"] // 100,
+                stripe_session_id=session["id"],
+                items=[]
+            )
 
     return HttpResponse(status=200)
 
-# ------------------ ORDERS ------------------
+
+# ================== ORDERS ==================
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_orders(request):
@@ -206,6 +232,7 @@ def my_orders(request):
         for o in orders
     ])
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def order_detail(request, order_id):
@@ -217,6 +244,7 @@ def order_detail(request, order_id):
         "created_at": order.created_at,
         "stripe_session_id": order.stripe_session_id,
     })
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -242,12 +270,12 @@ def order_invoice(request, order_id):
         filename=f"invoice_{order.id}.pdf"
     )
 
-# ------------------ ADDRESS ------------------
+
+# ================== ADDRESS ==================
 @csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
-    # -------- GET --------
     if request.method == "GET":
         try:
             address = Address.objects.get(user=request.user)
@@ -263,25 +291,12 @@ def address_view(request):
         except Address.DoesNotExist:
             return Response({}, status=200)
 
-    # -------- POST --------
     data = request.data
 
-    required_fields = [
-        "full_name",
-        "phone",
-        "street",
-        "city",
-        "state",
-        "pincode",
-    ]
+    required = ["full_name", "phone", "street", "city", "state", "pincode"]
+    if not all(data.get(f) for f in required):
+        return Response({"error": "All address fields are required"}, status=400)
 
-    if not all(data.get(field) for field in required_fields):
-        return Response(
-            {"error": "All address fields are required"},
-            status=400
-        )
-
-    # ✅ OneToOne-safe save
     address, created = Address.objects.update_or_create(
         user=request.user,
         defaults={
@@ -294,10 +309,4 @@ def address_view(request):
         }
     )
 
-    return Response(
-        {
-            "id": address.id,
-            "created": created
-        },
-        status=201
-    )
+    return Response({"id": address.id, "created": created}, status=201)
