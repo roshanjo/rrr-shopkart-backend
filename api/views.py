@@ -150,11 +150,14 @@ def create_checkout_session(request):
     try:
         total = int(request.data.get("total", 0))
 
-        if total <= 0:
-            return Response({"error": "Invalid total"}, status=400)
+        # 🔐 Stripe minimum (₹50 ≈ $0.60)
+        if total < 50:
+            return Response(
+                {"error": "Cart total must be at least ₹50"},
+                status=400
+            )
 
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
             mode="payment",
             line_items=[
                 {
@@ -168,8 +171,8 @@ def create_checkout_session(request):
                     "quantity": 1
                 }
             ],
-            success_url=f"{FRONTEND_URL}/success",
-            cancel_url=f"{FRONTEND_URL}/cart",
+            success_url="https://aikart-shop.onrender.com/success",
+            cancel_url="https://aikart-shop.onrender.com/cart",
             metadata={
                 "user_id": str(request.user.id)
             }
@@ -183,6 +186,7 @@ def create_checkout_session(request):
             {"error": "Failed to create checkout session"},
             status=500
         )
+
 
 
 # ================== STRIPE WEBHOOK ==================
