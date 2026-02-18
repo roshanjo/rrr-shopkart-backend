@@ -1,31 +1,50 @@
+# --------------------------------------------------
+# IMPORTS
+# --------------------------------------------------
+
 from pathlib import Path
 from datetime import timedelta
 import os
 import dj_database_url
 
+
 # --------------------------------------------------
-# BASE DIR
+# BASE DIRECTORY
 # --------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --------------------------------------------------
-# SECURITY
-# --------------------------------------------------
-SECRET_KEY = os.environ.get("SECRET_KEY", "unsafe-dev-key")
 
-DEBUG = os.environ.get("DEBUG", "False") == "True"
+# --------------------------------------------------
+# SECURITY SETTINGS
+# --------------------------------------------------
+
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "unsafe-dev-key"
+)
+
+DEBUG = os.environ.get(
+    "DEBUG",
+    "False"
+) == "True"
 
 ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS",
     "localhost,127.0.0.1,rrr-shopkart-backend.onrender.com,aikart-shop.onrender.com"
 ).split(",")
 
-# --------------------------------------------------
-# APPLICATIONS
-# --------------------------------------------------
-INSTALLED_APPS = [
-    "corsheaders",
 
+# --------------------------------------------------
+# INSTALLED APPLICATIONS
+# --------------------------------------------------
+
+INSTALLED_APPS = [
+    # Third-party apps
+    "corsheaders",
+    "rest_framework",
+
+    # Django default apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -33,14 +52,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    "rest_framework",
-
+    # Local apps
     "api",
 ]
+
 
 # --------------------------------------------------
 # MIDDLEWARE
 # --------------------------------------------------
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -56,8 +76,9 @@ MIDDLEWARE = [
 
 
 # --------------------------------------------------
-# TEMPLATES (REQUIRED FOR ADMIN)
+# TEMPLATES (Required for Django Admin)
 # --------------------------------------------------
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -74,19 +95,23 @@ TEMPLATES = [
     },
 ]
 
+
 # --------------------------------------------------
-# URL / WSGI
+# URL / WSGI CONFIGURATION
 # --------------------------------------------------
+
 ROOT_URLCONF = "backend.urls"
 WSGI_APPLICATION = "backend.wsgi.application"
 
+
 # --------------------------------------------------
-# DATABASE
+# DATABASE CONFIGURATION
 # --------------------------------------------------
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
-    # ✅ Supabase / Render (Postgres)
+    # ✅ Production (Supabase / Render - PostgreSQL)
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -94,8 +119,9 @@ if DATABASE_URL:
             ssl_require=True,
         )
     }
+
 else:
-    # ✅ Local fallback (SQLite)
+    # ✅ Local Development (SQLite)
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -103,36 +129,56 @@ else:
         }
     }
 
+
 # --------------------------------------------------
 # PASSWORD VALIDATION
 # --------------------------------------------------
+
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"
+    },
 ]
+
 
 # --------------------------------------------------
 # INTERNATIONALIZATION
 # --------------------------------------------------
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
+
 USE_I18N = True
 USE_TZ = True
 
+
 # --------------------------------------------------
-# STATIC FILES
+# STATIC FILES CONFIGURATION
 # --------------------------------------------------
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
 # --------------------------------------------------
-# CORS / CSRF
+# CORS / CSRF SETTINGS
 # --------------------------------------------------
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
@@ -141,15 +187,19 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5174",
 ]
 
+
 # --------------------------------------------------
-# STRIPE
+# STRIPE SETTINGS
 # --------------------------------------------------
+
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
 
+
 # --------------------------------------------------
-# REST / JWT
+# REST FRAMEWORK / JWT SETTINGS
 # --------------------------------------------------
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",

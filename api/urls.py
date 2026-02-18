@@ -13,20 +13,66 @@ from .views import (
     address_view,
 )
 
+
+# ============================
+# URL Patterns
+# ============================
+
 urlpatterns = [
-    path("", home),
 
-    path("signup/", signup),
-    path("login/", login_user),
-    path("me/", me),
-    path("profile/", update_profile),
+    # Home
+    path(
+        "",
+        home
+    ),
 
-    path("create-checkout-session/", create_checkout_session),
-    path("stripe/webhook/", stripe_webhook),
+    # Authentication
+    path(
+        "signup/",
+        signup
+    ),
+    path(
+        "login/",
+        login_user
+    ),
+    path(
+        "me/",
+        me
+    ),
 
-    path("orders/", my_orders),
-    path("orders/<int:order_id>/", order_detail),
-    path("orders/<int:order_id>/invoice/", order_invoice),
+    # Profile
+    path(
+        "profile/",
+        update_profile
+    ),
 
-    path("address/", address_view),
+    # Stripe Payments
+    path(
+        "create-checkout-session/",
+        create_checkout_session
+    ),
+    path(
+        "stripe/webhook/",
+        stripe_webhook
+    ),
+
+    # Orders
+    path(
+        "orders/",
+        my_orders
+    ),
+    path(
+        "orders/<int:order_id>/",
+        order_detail
+    ),
+    path(
+        "orders/<int:order_id>/invoice/",
+        order_invoice
+    ),
+
+    # Address
+    path(
+        "address/",
+        address_view
+    ),
 ]

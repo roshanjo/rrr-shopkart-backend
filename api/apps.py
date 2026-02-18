@@ -2,5 +2,9 @@ from django.apps import AppConfig
 
 
 class ApiConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
+
+    # Default primary key field type
+    default_auto_field = "django.db.models.BigAutoField"
+
+    # App name
     name = "api"

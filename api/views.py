@@ -18,32 +18,56 @@ from reportlab.pdfgen import canvas
 from .models import Order, Address, Profile
 
 
-# ================== STRIPE CONFIG ==================
+# ==================================================
+# STRIPE CONFIG
+# ==================================================
+
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.environ.get(
+    "FRONTEND_URL",
+    "http://localhost:5173"
+)
 
 
-# ================== HOME ==================
+# ==================================================
+# HOME
+# ==================================================
+
 def home(request):
-    return HttpResponse("RRR Shopkart Backend is running 🚀")
+    return HttpResponse(
+        "RRR Shopkart Backend is running 🚀"
+    )
 
 
-# ================== AUTH ==================
+# ==================================================
+# AUTH - SIGNUP
+# ==================================================
+
 @api_view(["POST"])
 def signup(request):
+
     username = request.data.get("username")
     email = request.data.get("email")
     password = request.data.get("password")
 
     if not username or not email or not password:
-        return Response({"error": "All fields are required"}, status=400)
+        return Response(
+            {"error": "All fields are required"},
+            status=400
+        )
 
     if User.objects.filter(username=username).exists():
-        return Response({"error": "Username already exists"}, status=400)
+        return Response(
+            {"error": "Username already exists"},
+            status=400
+        )
 
     if User.objects.filter(email=email).exists():
-        return Response({"error": "Email already exists"}, status=400)
+        return Response(
+            {"error": "Email already exists"},
+            status=400
+        )
 
     user = User.objects.create_user(
         username=username,
@@ -59,67 +83,105 @@ def signup(request):
 
     refresh = RefreshToken.for_user(user)
 
-    return Response({
-        "token": str(refresh.access_token),
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "avatar": user.profile.avatar
-    }, status=201)
+    return Response(
+        {
+            "token": str(refresh.access_token),
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "avatar": user.profile.avatar,
+        },
+        status=201
+    )
 
+
+# ==================================================
+# AUTH - LOGIN
+# ==================================================
 
 @api_view(["POST"])
 def login_user(request):
+
     email = request.data.get("email")
     password = request.data.get("password")
 
     try:
         user = User.objects.get(email=email)
+
         if not user.check_password(password):
             raise User.DoesNotExist
+
     except User.DoesNotExist:
-        return Response({"error": "Invalid credentials"}, status=401)
+        return Response(
+            {"error": "Invalid credentials"},
+            status=401
+        )
 
     profile, _ = Profile.objects.get_or_create(
         user=user,
-        defaults={"avatar": "/avatars/a1.png", "theme": "light"}
+        defaults={
+            "avatar": "/avatars/a1.png",
+            "theme": "light"
+        }
     )
 
     refresh = RefreshToken.for_user(user)
 
-    return Response({
-        "token": str(refresh.access_token),
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "avatar": profile.avatar
-    })
+    return Response(
+        {
+            "token": str(refresh.access_token),
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "avatar": profile.avatar,
+        }
+    )
 
 
-# ================== ME ==================
+# ==================================================
+# ME
+# ==================================================
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    profile, _ = Profile.objects.get_or_create(user=request.user)
-    return Response({
-        "id": request.user.id,
-        "username": request.user.username,
-        "email": request.user.email,
-        "avatar": profile.avatar,
-        "theme": profile.theme
-    })
+
+    profile, _ = Profile.objects.get_or_create(
+        user=request.user
+    )
+
+    return Response(
+        {
+            "id": request.user.id,
+            "username": request.user.username,
+            "email": request.user.email,
+            "avatar": profile.avatar,
+            "theme": profile.theme,
+        }
+    )
 
 
-# ================== UPDATE PROFILE ==================
+# ==================================================
+# UPDATE PROFILE
+# ==================================================
+
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
+
     user = request.user
-    profile, _ = Profile.objects.get_or_create(user=user)
+    profile, _ = Profile.objects.get_or_create(
+        user=user
+    )
 
     if "username" in request.data:
-        if User.objects.filter(username=request.data["username"]).exclude(id=user.id).exists():
-            return Response({"error": "Username already taken"}, status=400)
+        if User.objects.filter(
+            username=request.data["username"]
+        ).exclude(id=user.id).exists():
+            return Response(
+                {"error": "Username already taken"},
+                status=400
+            )
         user.username = request.data["username"]
 
     if "password" in request.data:
@@ -134,23 +196,29 @@ def update_profile(request):
     user.save()
     profile.save()
 
-    return Response({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "avatar": profile.avatar,
-        "theme": profile.theme
-    })
+    return Response(
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "avatar": profile.avatar,
+            "theme": profile.theme,
+        }
+    )
 
 
-# ================== STRIPE CHECKOUT ==================
+# ==================================================
+# STRIPE CHECKOUT
+# ==================================================
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_checkout_session(request):
+
     try:
         total = int(request.data.get("total", 0))
 
-        # 🔐 Stripe minimum (₹50 ≈ $0.60)
+        # Stripe minimum (₹50 ≈ $0.60)
         if total < 50:
             return Response(
                 {"error": "Cart total must be at least ₹50"},
@@ -168,7 +236,7 @@ def create_checkout_session(request):
                         },
                         "unit_amount": total * 100,
                     },
-                    "quantity": 1
+                    "quantity": 1,
                 }
             ],
             success_url="https://aikart-shop.onrender.com/success",
@@ -178,7 +246,9 @@ def create_checkout_session(request):
             }
         )
 
-        return Response({"url": session.url})
+        return Response(
+            {"url": session.url}
+        )
 
     except Exception as e:
         print("STRIPE CHECKOUT ERROR:", str(e))
@@ -188,10 +258,13 @@ def create_checkout_session(request):
         )
 
 
+# ==================================================
+# STRIPE WEBHOOK
+# ==================================================
 
-# ================== STRIPE WEBHOOK ==================
 @csrf_exempt
 def stripe_webhook(request):
+
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
 
@@ -201,13 +274,14 @@ def stripe_webhook(request):
             sig_header,
             STRIPE_WEBHOOK_SECRET
         )
+
     except Exception as e:
         print("WEBHOOK ERROR:", e)
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
 
+        session = event["data"]["object"]
         user_id = session.get("metadata", {}).get("user_id")
 
         if user_id:
@@ -221,39 +295,59 @@ def stripe_webhook(request):
     return HttpResponse(status=200)
 
 
-# ================== ORDERS ==================
+# ==================================================
+# ORDERS
+# ==================================================
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_orders(request):
-    orders = Order.objects.filter(user=request.user).order_by("-created_at")
-    return Response([
-        {
-            "id": o.id,
-            "total": o.total,
-            "created_at": o.created_at,
-            "stripe_session_id": o.stripe_session_id,
-        }
-        for o in orders
-    ])
+
+    orders = Order.objects.filter(
+        user=request.user
+    ).order_by("-created_at")
+
+    return Response(
+        [
+            {
+                "id": o.id,
+                "total": o.total,
+                "created_at": o.created_at,
+                "stripe_session_id": o.stripe_session_id,
+            }
+            for o in orders
+        ]
+    )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def order_detail(request, order_id):
-    order = Order.objects.get(id=order_id, user=request.user)
-    return Response({
-        "id": order.id,
-        "total": order.total,
-        "items": order.items,
-        "created_at": order.created_at,
-        "stripe_session_id": order.stripe_session_id,
-    })
+
+    order = Order.objects.get(
+        id=order_id,
+        user=request.user
+    )
+
+    return Response(
+        {
+            "id": order.id,
+            "total": order.total,
+            "items": order.items,
+            "created_at": order.created_at,
+            "stripe_session_id": order.stripe_session_id,
+        }
+    )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def order_invoice(request, order_id):
-    order = Order.objects.get(id=order_id, user=request.user)
+
+    order = Order.objects.get(
+        id=order_id,
+        user=request.user
+    )
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
@@ -266,6 +360,7 @@ def order_invoice(request, order_id):
 
     pdf.showPage()
     pdf.save()
+
     buffer.seek(0)
 
     return FileResponse(
@@ -275,31 +370,54 @@ def order_invoice(request, order_id):
     )
 
 
-# ================== ADDRESS ==================
+# ==================================================
+# ADDRESS
+# ==================================================
+
 @csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def address_view(request):
+
     if request.method == "GET":
+
         try:
-            address = Address.objects.get(user=request.user)
-            return Response({
-                "id": address.id,
-                "full_name": address.full_name,
-                "phone": address.phone,
-                "street": address.street,
-                "city": address.city,
-                "state": address.state,
-                "pincode": address.pincode,
-            })
+            address = Address.objects.get(
+                user=request.user
+            )
+
+            return Response(
+                {
+                    "id": address.id,
+                    "full_name": address.full_name,
+                    "phone": address.phone,
+                    "street": address.street,
+                    "city": address.city,
+                    "state": address.state,
+                    "pincode": address.pincode,
+                }
+            )
+
         except Address.DoesNotExist:
             return Response({}, status=200)
 
+    # POST
     data = request.data
 
-    required = ["full_name", "phone", "street", "city", "state", "pincode"]
-    if not all(data.get(f) for f in required):
-        return Response({"error": "All address fields are required"}, status=400)
+    required_fields = [
+        "full_name",
+        "phone",
+        "street",
+        "city",
+        "state",
+        "pincode",
+    ]
+
+    if not all(data.get(field) for field in required_fields):
+        return Response(
+            {"error": "All address fields are required"},
+            status=400
+        )
 
     address, created = Address.objects.update_or_create(
         user=request.user,
@@ -313,4 +431,10 @@ def address_view(request):
         }
     )
 
-    return Response({"id": address.id, "created": created}, status=201)
+    return Response(
+        {
+            "id": address.id,
+            "created": created
+        },
+        status=201
+    )

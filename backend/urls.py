@@ -1,12 +1,49 @@
+# --------------------------------------------------
+# IMPORTS
+# --------------------------------------------------
+
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path, include
 
+
+# --------------------------------------------------
+# SIMPLE HOME VIEW
+# --------------------------------------------------
+
 def home(request):
-    return HttpResponse("RRR Shopkart Backend is running 🚀")
+    """
+    This function runs when someone visits:
+    http://your-domain.com/
+
+    It returns a simple text response.
+    """
+    return HttpResponse(
+        "RRR Shopkart Backend is running 🚀"
+    )
+
+
+# --------------------------------------------------
+# URL PATTERNS
+# --------------------------------------------------
 
 urlpatterns = [
-    path("", home),
-    path("admin/", admin.site.urls),   # ✅ ADD THIS
-    path("api/", include("api.urls")),
+
+    # Homepage
+    path(
+        "",
+        home
+    ),
+
+    # Django Admin Panel
+    path(
+        "admin/",
+        admin.site.urls
+    ),
+
+    # API Routes
+    path(
+        "api/",
+        include("api.urls")
+    ),
 ]
