@@ -1,17 +1,11 @@
 from django.urls import path
-from .views import (
-    home,
-    signup,
-    login_user,
-    me,
-    update_profile,
-    create_checkout_session,
-    stripe_webhook,
-    my_orders,
-    order_detail,
-    order_invoice,
-    address_view,
-)
+from .views.home import home
+from .views.auth import signup, login_user, me
+from .views.profile import update_profile
+from .views.payments import create_checkout_session, stripe_webhook
+from .views.orders import my_orders, order_detail, order_invoice
+from .views.address import address_view
+
 
 
 # ============================

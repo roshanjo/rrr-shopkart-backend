@@ -97,3 +97,17 @@ class Address(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.city}"
+
+
+# ============================
+# Product Model (Price Source of Truth)
+# ============================
+
+class Product(models.Model):
+    id = models.IntegerField(primary_key=True)
+    title = models.CharField(max_length=255)
+    price_inr = models.IntegerField(help_text="Price in INR")
+    category = models.CharField(max_length=100, blank=True)
+
+    def __str__(self):
+        return f"{self.title} (₹{self.price_inr})"

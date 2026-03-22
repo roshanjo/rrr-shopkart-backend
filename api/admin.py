@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Profile, Order
+from .models import Profile, Order, Product
 
 
 # ============================
@@ -43,3 +43,23 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = (
         "created_at",
     )
+
+
+# ============================
+# Product Admin
+# ============================
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "id",
+        "title",
+        "price_inr",
+        "category",
+    )
+
+    search_fields = (
+        "title",
+        "category",
+    )
