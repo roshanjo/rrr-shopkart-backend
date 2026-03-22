@@ -6,6 +6,11 @@ from pathlib import Path
 from datetime import timedelta
 import os
 import dj_database_url
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 
 
 # --------------------------------------------------
@@ -107,7 +112,7 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-if DATABASE_URL:
+if DATABASE_URL and "placeholder" not in DATABASE_URL:
     # ✅ Production (Supabase / Render - PostgreSQL)
     DATABASES = {
         "default": dj_database_url.config(
@@ -125,6 +130,7 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
 
 
 # --------------------------------------------------
