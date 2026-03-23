@@ -1,5 +1,0 @@
-﻿Operations to perform:
-  Target specific migration: 0006_alter_order_stripe_session_id, from api
-Running migrations:
-  Rendering model states... DONE
-  Unapplying api.0007_product_address... FAKED
