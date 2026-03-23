@@ -80,7 +80,7 @@ def create_checkout_session(request):
 
     except Exception as e:
         print("STRIPE CHECKOUT ERROR:", str(e))
-        return Response({"error": "Failed to create checkout session"}, status=500)
+        return Response({"error": f"Checkout Failed: {str(e)}"}, status=500)
 
 
 # ==================================================
