@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..models import Order, Product
+from ..models import Order, Product, ActivityLog
 
 
 # ==================================================
@@ -86,6 +86,8 @@ def create_checkout_session(request):
             }
         )
 
+        ActivityLog.objects.create(user=request.user, action="Created checkout session")
+
         return Response({"url": session.url})
 
     except Exception as e:
@@ -117,11 +119,23 @@ def stripe_webhook(request):
         user_id = session.get("metadata", {}).get("user_id")
 
         if user_id:
-            Order.objects.create(
-                user_id=user_id,
-                total=session["amount_total"] // 100,
+            from django.utils import timezone
+            
+            order, created = Order.objects.update_or_create(
                 stripe_session_id=session["id"],
-                items=[] # Unstructured backup
+                defaults={
+                    "user_id": user_id,
+                    "total": session["amount_total"] // 100,
+                    "payment_status": "paid",
+                    "payment_method": "stripe",
+                    "paid_at": timezone.now(),
+                    "items": []
+                }
+            )
+            
+            ActivityLog.objects.create(
+                user_id=user_id, 
+                action=f"Payment Success - Order #{order.id}"
             )
 
     return HttpResponse(status=200)

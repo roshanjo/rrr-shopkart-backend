@@ -49,7 +49,12 @@ def order_detail(request, order_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def order_invoice(request, order_id):
-    order = Order.objects.get(id=order_id, user=request.user)
+    try:
+        order = Order.objects.get(id=order_id)
+        if order.user != request.user:
+            return Response({"error": "Unauthorized"}, status=403)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)

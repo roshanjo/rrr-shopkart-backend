@@ -5,7 +5,7 @@ from .views.profile import update_profile
 from .views.payments import create_checkout_session, stripe_webhook
 from .views.orders import my_orders, order_detail, order_invoice
 from .views.address import address_view
-
+from .views.admin_panel import analytics, list_users, user_action, list_logs, list_payments
 
 
 # ============================
@@ -68,5 +68,27 @@ urlpatterns = [
     path(
         "address/",
         address_view
+    ),
+
+    # Admin Panel
+    path(
+        "admin/analytics/",
+        analytics
+    ),
+    path(
+        "admin/users/",
+        list_users
+    ),
+    path(
+        "admin/users/<int:user_id>/action/",
+        user_action
+    ),
+    path(
+        "admin/logs/",
+        list_logs
+    ),
+    path(
+        "admin/payments/",
+        list_payments
     ),
 ]

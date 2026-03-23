@@ -24,8 +24,40 @@ class Profile(models.Model):
         default="light"
     )
 
+    status = models.CharField(
+        max_length=20,
+        default="active",
+        choices=[
+            ("active", "Active"),
+            ("blocked", "Blocked"),
+            ("suspended", "Suspended"),
+            ("banned", "Banned"),
+            ("deleted", "Deleted"),
+        ]
+    )
+
     def __str__(self):
         return self.user.username
+
+
+# ============================
+# ActivityLog Model
+# ============================
+
+class ActivityLog(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        user_str = self.user.username if self.user else "Anonymous"
+        return f"{user_str} - {self.action} @ {self.timestamp}"
+
 
 
 # ============================
@@ -47,6 +79,23 @@ class Order(models.Model):
     stripe_session_id = models.CharField(
         max_length=255,
         unique=True
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        default="pending"
+    )
+
+    payment_method = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True
+    )
+
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True
     )
 
     created_at = models.DateTimeField(
