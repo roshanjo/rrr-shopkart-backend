@@ -37,8 +37,18 @@ def create_checkout_session(request):
 
         # Backend verifies total using local Product DB
         for item in items:
-            prod_id = item.get("id")
-            qty = int(item.get("qty", 1))
+            # Fallback format: "id" or "product_id"
+            prod_id = item.get("id") or item.get("product_id")
+            # Fallback format: "qty" or "quantity"
+            qty = item.get("qty") or item.get("quantity") or 1
+
+            try:
+                prod_id = int(prod_id)
+                qty = int(qty)
+            except (TypeError, ValueError):
+                return Response({"error": "Invalid product data format"}, status=400)
+
+            print("Processed item:", prod_id, qty)
 
             # Defensive Check
             if qty <= 0:
