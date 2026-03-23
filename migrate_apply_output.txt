@@ -1,0 +1,4 @@
+﻿Operations to perform:
+  Apply all migrations: api
+Running migrations:
+  Applying api.0007_product_address... OK

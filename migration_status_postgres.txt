@@ -1,0 +1,413 @@
+﻿python.exe : 
+Traceback (most 
+recent call last):
+At line:1 char:111
++ ... /postgres"; & 
+"d:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backen ...
++                 ~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: (Trac   
+ eback (most rec    
+ent call last):    
+:String) [], Re    
+moteException
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+275, in 
+ensure_connection
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+256, in connect
+    self.connection 
+= self.get_new_conne
+ction(conn_params)
+                    
+  ~~~~~~~~~~~~~~~~~~
+~~~~~^^^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+postgresql\base.py",
+ line 277, in 
+get_new_connection
+    connection = sel
+f.Database.connect(*
+*conn_params)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\psycopg2\__init__.p
+y", line 135, in 
+connect
+    conn = 
+_connect(dsn, connec
+tion_factory=connect
+ion_factory, 
+**kwasync)
+psycopg2.Operational
+Error: could not 
+translate host name 
+"db.aegswqiprdwyhijt
+pmio.supabase.co" 
+to address: Name or 
+service not known
+
+
+The above exception 
+was the direct 
+cause of the 
+following exception:
+
+Traceback (most 
+recent call last):
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\man
+age.py", line 37, 
+in <module>
+    main()
+    ~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\man
+age.py", line 33, 
+in main
+    execute_from_com
+mand_line(sys.argv)
+    ~~~~~~~~~~~~~~~~
+~~~~~~~~~^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\__init__.py", 
+line 442, in execute
+_from_command_line
+    
+utility.execute()
+    
+~~~~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\__init__.py", 
+line 436, in execute
+    self.fetch_comma
+nd(subcommand).run_f
+rom_argv(self.argv)
+    ~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\base.py", line 
+413, in 
+run_from_argv
+    
+self.execute(*args, 
+**cmd_options)
+    ~~~~~~~~~~~~^^^^
+^^^^^^^^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\base.py", line 
+459, in execute
+    output = 
+self.handle(*args, 
+**options)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\commands\showmig
+rations.py", line 
+66, in handle
+    return self.show
+_list(connection, op
+tions["app_label"])
+           ~~~~~~~~~
+~~~~~^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\core\managem
+ent\commands\showmig
+rations.py", line 
+85, in show_list
+    loader = Migrati
+onLoader(connection,
+ ignore_no_migration
+s=True)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\migration
+s\loader.py", line 
+58, in __init__
+    
+self.build_graph()
+    
+~~~~~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\migration
+s\loader.py", line 
+235, in build_graph
+    self.applied_mig
+rations = recorder.a
+pplied_migrations()
+                    
+          ~~~~~~~~~~
+~~~~~~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\migration
+s\recorder.py", 
+line 89, in 
+applied_migrations
+    if 
+self.has_table():
+       
+~~~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\migration
+s\recorder.py", 
+line 63, in 
+has_table
+    with self.connec
+tion.cursor() as 
+cursor:
+         ~~~~~~~~~~~
+~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+316, in cursor
+    return 
+self._cursor()
+           
+~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+292, in _cursor
+    self.ensure_conn
+ection()
+    ~~~~~~~~~~~~~~~~
+~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+274, in 
+ensure_connection
+    with self.wrap_d
+atabase_errors:
+         ^^^^^^^^^^^
+^^^^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\utils.py"
+, line 91, in 
+__exit__
+    raise dj_exc_val
+ue.with_traceback(tr
+aceback) from 
+exc_value
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+275, in 
+ensure_connection
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+base\base.py", line 
+256, in connect
+    self.connection 
+= self.get_new_conne
+ction(conn_params)
+                    
+  ~~~~~~~~~~~~~~~~~~
+~~~~~^^^^^^^^^^^^^
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\utils\asynci
+o.py", line 26, in 
+inner
+    return 
+func(*args, 
+**kwargs)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\django\db\backends\
+postgresql\base.py",
+ line 277, in 
+get_new_connection
+    connection = sel
+f.Database.connect(*
+*conn_params)
+  File 
+"D:\Roshan\Roshan Pr
+ojects\Shopkart\rrr-
+shopkart-backend\.ve
+nv\Lib\site-packages
+\psycopg2\__init__.p
+y", line 135, in 
+connect
+    conn = 
+_connect(dsn, connec
+tion_factory=connect
+ion_factory, 
+**kwasync)
+django.db.utils.Oper
+ationalError: could 
+not translate host 
+name "db.aegswqiprdw
+yhijtpmio.supabase.c
+o" to address: Name 
+or service not known
+
