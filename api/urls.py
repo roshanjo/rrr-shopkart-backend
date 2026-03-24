@@ -5,7 +5,8 @@ from .views.profile import update_profile
 from .views.payments import create_checkout_session, stripe_webhook
 from .views.orders import my_orders, order_detail, order_invoice
 from .views.address import address_view
-from .views.admin_panel import analytics, list_users, user_action, list_logs, list_payments
+from .views.admin_panel import analytics, list_users, user_action, list_logs, list_payments, admin_products, admin_product_detail
+
 
 
 # ============================
@@ -91,4 +92,13 @@ urlpatterns = [
         "admin/payments/",
         list_payments
     ),
+    path(
+        "admin/products/",
+        admin_products
+    ),
+    path(
+        "admin/products/<int:product_id>/",
+        admin_product_detail
+    ),
+
 ]

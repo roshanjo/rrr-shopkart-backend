@@ -17,18 +17,27 @@ from ..models import Order
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_orders(request):
-    orders = Order.objects.filter(user=request.user).order_by("-created_at")
+    try:
+        limit = int(request.GET.get("limit", 10))
+        offset = int(request.GET.get("offset", 0))
+    except ValueError:
+        return Response({"error": "Invalid pagination parameters"}, status=400)
+
+    orders = Order.objects.filter(user=request.user).order_by("-created_at")[offset:offset+limit]
     return Response(
         [
             {
                 "id": o.id,
                 "total": o.total,
+                "items": o.items,
+                "payment_status": o.payment_status,
                 "created_at": o.created_at,
                 "stripe_session_id": o.stripe_session_id,
             }
             for o in orders
         ]
     )
+
 
 
 @api_view(["GET"])

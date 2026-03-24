@@ -157,6 +157,28 @@ class Product(models.Model):
     title = models.CharField(max_length=255)
     price_inr = models.IntegerField(help_text="Price in INR")
     category = models.CharField(max_length=100, blank=True)
+    stock = models.IntegerField(default=10, help_text="Stock Quantity")
 
     def __str__(self):
-        return f"{self.title} (₹{self.price_inr})"
+        return f"{self.title} (₹{self.price_inr})"
+
+
+# ============================
+# CartSnapshot Model
+# ============================
+
+class CartSnapshot(models.Model):
+    stripe_session_id = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True
+    )
+    items = models.JSONField()  # [{product_id, quantity}]
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
+
+    def __str__(self):
+        return f"Snapshot - {self.stripe_session_id}"
+

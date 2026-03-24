@@ -1,8 +1,12 @@
 import os
 import stripe
+import logging
+
+logger = logging.getLogger(__name__)
 
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -27,52 +31,51 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 @permission_classes([IsAuthenticated])
 def create_checkout_session(request):
     try:
-        items = request.data.get("items", [])  # Expects list of {id, qty}
+        items = request.data.get("items", []) # Expects list of {id, qty}
 
         if not items:
             return Response({"error": "Cart is empty"}, status=400)
 
+        logger.info(f"Checkout Start for user_id={request.user.id}")
+
+        # Normalize to strict format: {product_id, quantity}
+        normalized_items = []
+        for item in items:
+            prod_id = item.get("id") or item.get("product_id")
+            qty = item.get("qty") or item.get("quantity") or 1
+            normalized_items.append({
+                "product_id": prod_id,
+                "quantity": qty
+            })
+
+        # Validation
+        from ..utils import validate_cart
+        try:
+            validated_items = validate_cart(normalized_items, lock=False)
+        except Exception as e:
+            logger.error(f"Validation failed during checkout creation: {str(e)}")
+            return Response({"error": str(e)}, status=400)
+
         total = 0
         line_items = []
 
-        # Backend verifies total using local Product DB
-        for item in items:
-            # Fallback format: "id" or "product_id"
-            prod_id = item.get("id") or item.get("product_id")
-            # Fallback format: "qty" or "quantity"
-            qty = item.get("qty") or item.get("quantity") or 1
+        for v_item in validated_items:
+            product = v_item["product"]
+            qty = v_item["quantity"]
+            price_inr = v_item["price_inr"]
 
-            try:
-                prod_id = int(prod_id)
-                qty = int(qty)
-            except (TypeError, ValueError):
-                return Response({"error": "Invalid product data format"}, status=400)
-
-            print("Processed item:", prod_id, qty)
-
-            # Defensive Check
-            if qty <= 0:
-                return Response({"error": "Invalid quantity"}, status=400)
-
-            try:
-                db_item = Product.objects.get(id=prod_id)
-                total += db_item.price_inr * qty
-                
-                line_items.append({
-                    "price_data": {
-                        "currency": "inr",
-                        "product_data": {
-                            "name": db_item.title
-                        },
-                        "unit_amount": db_item.price_inr * 100, # In Cents
+            total += price_inr * qty
+            line_items.append({
+                "price_data": {
+                    "currency": "inr",
+                    "product_data": {
+                        "name": product.title
                     },
-                    "quantity": qty,
-                })
-                
-            except Product.DoesNotExist:
-                return Response({"error": "Invalid product"}, status=400)
+                    "unit_amount": price_inr * 100, # In Cents
+                },
+                "quantity": qty,
+            })
 
-        # Confirm minimum order total for Stripe (₹50)
         if total < 50:
             return Response({"error": "Cart total must be at least ₹50"}, status=400)
 
@@ -86,13 +89,23 @@ def create_checkout_session(request):
             }
         )
 
+        # Save Snapshot (Save normalized_items for webhook safety)
+        from ..models import CartSnapshot
+        CartSnapshot.objects.create(
+            stripe_session_id=session.id,
+            items=normalized_items
+        )
+
         ActivityLog.objects.create(user=request.user, action="Created checkout session")
+        logger.info(f"Checkout Session Created: {session.id} for user_id={request.user.id}")
 
         return Response({"url": session.url})
 
     except Exception as e:
-        print("STRIPE CHECKOUT ERROR:", str(e))
+        logger.error(f"STRIPE CHECKOUT ERROR: {str(e)}")
         return Response({"error": f"Checkout Failed: {str(e)}"}, status=500)
+
+
 
 
 # ==================================================
@@ -110,32 +123,93 @@ def stripe_webhook(request):
             sig_header,
             STRIPE_WEBHOOK_SECRET
         )
-    except Exception as e:
-        print("WEBHOOK ERROR:", e)
+    except Exception:
+        logger.error({
+            "event": "invalid_webhook_signature"
+        })
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
+        session_id = session.get("id")
         user_id = session.get("metadata", {}).get("user_id")
 
+        logger.info(f"Webhook Received: {event['type']} for session_id={session_id}")
+
         if user_id:
+            from django.db import transaction
             from django.utils import timezone
-            
-            order, created = Order.objects.update_or_create(
-                stripe_session_id=session["id"],
-                defaults={
-                    "user_id": user_id,
-                    "total": session["amount_total"] // 100,
-                    "payment_status": "paid",
-                    "payment_method": "stripe",
-                    "paid_at": timezone.now(),
-                    "items": []
-                }
-            )
-            
-            ActivityLog.objects.create(
-                user_id=user_id, 
-                action=f"Payment Success - Order #{order.id}"
-            )
+            from ..models import CartSnapshot, Order, Product
+            from ..utils import validate_cart
+
+            # Idempotency Check
+            existing_order = Order.objects.filter(stripe_session_id=session_id).first()
+            if existing_order:
+                logger.info(f"Order already exists for session_id={session_id}, skipping.")
+                return HttpResponse(status=200)
+
+            # Fetch snapshot
+            snapshot = CartSnapshot.objects.filter(stripe_session_id=session_id).first()
+            if not snapshot:
+                logger.error(f"CartSnapshot missing for session_id={session_id}")
+                return HttpResponse(status=400)
+
+            try:
+                with transaction.atomic():
+                    validated_items = validate_cart(snapshot.items, lock=True)
+                    
+                    total = 0
+                    items_snapshot = []
+
+                    for v_item in validated_items:
+                        product = v_item["product"]
+                        qty = v_item["quantity"]
+                        price_inr = v_item["price_inr"]
+
+                        # Deduct Stock
+                        product.stock -= qty
+                        product.save()
+
+                        total += price_inr * qty
+                        items_snapshot.append({
+                            "product_id": product.id,
+                            "title": product.title,
+                            "price": price_inr,
+                            "quantity": qty
+                        })
+
+                    from django.core.cache import cache
+                    for item in validated_items:
+                        product = item["product"]
+                        cache.delete(f"product_{product.id}")
+
+                    order = Order.objects.create(
+                        stripe_session_id=session_id,
+                        user_id=user_id,
+                        total=total,
+                        payment_status="paid",
+                        payment_method="stripe",
+                        paid_at=timezone.now(),
+                        items=items_snapshot
+                    )
+
+                    ActivityLog.objects.create(
+                        user_id=user_id, 
+                        action=f"Payment Success - Order #{order.id}"
+                    )
+
+                    # Cleanup Snapshot
+                    snapshot.delete()
+                    logger.info(f"Order Created Successfully: #{order.id} for session_id={session_id}")
+
+            except Exception as e:
+                logger.error({
+                    "event": "webhook_failed",
+                    "session_id": session_id,
+                    "error": str(e)
+                })
+                return HttpResponse(status=500)
 
     return HttpResponse(status=200)
+
+

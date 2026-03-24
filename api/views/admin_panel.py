@@ -3,8 +3,11 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from django.http import HttpResponse
 
-from ..models import Order, Profile, ActivityLog
+from ..models import Order, Profile, ActivityLog, Product
+
+
 from ..permissions import IsCustomAdmin
 
 import datetime
@@ -162,3 +165,59 @@ def list_payments(request):
         for p in payments
     ]
     return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([IsCustomAdmin])
+def admin_products(request):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponse(status=403)
+    products = Product.objects.all().order_by("id")
+    data = [
+        {
+            "id": p.id,
+            "title": p.title,
+            "price_inr": p.price_inr,
+            "stock": p.stock,
+            "category": p.category
+        }
+        for p in products
+    ]
+    return Response(data)
+
+@api_view(["PATCH"])
+@permission_classes([IsCustomAdmin])
+def admin_product_detail(request, product_id):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return HttpResponse(status=403)
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return Response({"error": "Product not found"}, status=404)
+
+    stock = request.data.get("stock")
+    if stock is not None:
+        try:
+            stock = int(stock)
+            if stock < 0:
+                return Response({"error": "Stock cannot be negative"}, status=400)
+            product.stock = stock
+        except ValueError:
+            return Response({"error": "Invalid stock value"}, status=400)
+
+    product.save()
+    
+    from django.core.cache import cache
+    cache.delete(f"product_{product_id}")
+
+    ActivityLog.objects.create(
+        user=request.user, 
+        action=f"Updated stock for Product #{product_id} to {product.stock}"
+    )
+
+    return Response({
+        "message": "Product stock updated successfully",
+        "id": product.id,
+        "stock": product.stock
+    })
+
