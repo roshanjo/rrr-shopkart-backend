@@ -3,7 +3,7 @@ from api.models import Product
 
 def sync():
     try:
-        url = "https://dummyjson.com/products?limit=100"
+        url = "https://dummyjson.com/products?limit=200"
         print(f"Fetching products from {url}...")
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
