@@ -52,7 +52,9 @@ def validate_cart(items, lock=False):
 
         # Stock Validation (ALWAYS fresh from DB when lock=True)
         if quantity > product.stock:
-            raise Exception(f"Out of stock for {product.title}")
+            if product.stock < 1:
+                raise Exception(f"Out of stock for {product.title}")
+            quantity = product.stock # CAP to available stock
 
         validated_items.append({
             "product": product,

@@ -38,11 +38,16 @@ def create_checkout_session(request):
 
         logger.info(f"Checkout Start for user_id={request.user.id}")
 
-        # Normalize to strict format: {product_id, quantity}
-        normalized_items = []
+        # Aggregate duplicates and Normalize to strict format: {product_id, quantity}
+        aggregated = {}
         for item in items:
             prod_id = item.get("id") or item.get("product_id")
             qty = item.get("qty") or item.get("quantity") or 1
+            if prod_id:
+                aggregated[prod_id] = aggregated.get(prod_id, 0) + qty
+
+        normalized_items = []
+        for prod_id, qty in aggregated.items():
             normalized_items.append({
                 "product_id": prod_id,
                 "quantity": qty
