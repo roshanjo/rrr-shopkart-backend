@@ -51,9 +51,10 @@ def validate_cart(items, lock=False):
                 cache.set(cache_key, product, 300) # 5 minutes validation
 
         # Stock Validation (ALWAYS fresh from DB when lock=True)
+        if product.stock < 1:
+            raise Exception("Out of stock")
+
         if quantity > product.stock:
-            if product.stock < 1:
-                raise Exception(f"Out of stock for {product.title}")
             quantity = product.stock # CAP to available stock
 
         validated_items.append({

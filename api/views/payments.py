@@ -38,25 +38,40 @@ def create_checkout_session(request):
 
         logger.info(f"Checkout Start for user_id={request.user.id}")
 
-        # Aggregate duplicates and Normalize to strict format: {product_id, quantity}
+        # FIX 1: NORMALIZE CART INPUT
+        items = [
+            {
+                "product_id": item.get("product_id") or item.get("id"),
+                "quantity": item.get("quantity") or item.get("qty")
+            }
+            for item in items
+        ]
+
+        # FIX 2: AGGREGATE DUPLICATES
         aggregated = {}
         for item in items:
-            prod_id = item.get("id") or item.get("product_id")
-            qty = item.get("qty") or item.get("quantity") or 1
-            if prod_id:
-                aggregated[prod_id] = aggregated.get(prod_id, 0) + qty
-
-        normalized_items = []
-        for prod_id, qty in aggregated.items():
-            normalized_items.append({
-                "product_id": prod_id,
-                "quantity": qty
-            })
+            pid = item["product_id"]
+            qty = item["quantity"]
+            
+            if pid in aggregated:
+                aggregated[pid] += qty
+            else:
+                aggregated[pid] = qty
+                
+        normalized_items = [
+            {"product_id": pid, "quantity": qty}
+            for pid, qty in aggregated.items()
+        ]
 
         # Validation
         from ..utils import validate_cart
         try:
             validated_items = validate_cart(normalized_items, lock=False)
+            
+            logger.info({
+                "event": "final_cart_payload",
+                "items": normalized_items
+            })
         except Exception as e:
             logger.error(f"Validation failed during checkout creation: {str(e)}")
             return Response({"error": str(e)}, status=400)
