@@ -4,63 +4,71 @@ from .models import Product
 def validate_cart(items, lock=False):
     """
     Validates cart items against database Products with optional caching.
-    
-    items: List of dicts, supporting ONLY keys: 'product_id' and 'quantity'
-    lock: If True, uses select_for_update() inside a transaction
-    
-    Returns: List of dicts with full 'product' object, 'quantity', and 'price_inr'
-    Raises: Exception with descriptive error if validation fails
+    Returns: Dict with 'valid_items' and 'removed_items'
     """
-    validated_items = []
+    valid_items = []
+    removed_items = []
 
     for item in items:
-        # Strict Format Enforcement
         product_id = item.get("product_id")
         quantity = item.get("quantity")
 
         if product_id is None or quantity is None:
-            raise Exception("Invalid cart format")
+            # Skip invalid formats silently or log? 
+            # User wants self-healing, skipping is best.
+            continue
 
         try:
             product_id = int(product_id)
             quantity = int(quantity)
         except (TypeError, ValueError):
-            raise Exception("Invalid product data format")
+            continue
 
         if quantity < 1:
-            raise Exception("Quantity must be at least 1")
+            removed_items.append({"product_id": product_id, "reason": "invalid_quantity"})
+            continue
 
-        # Safe Product Caching
-        cache_key = f"product_{product_id}"
-        product = None
+        # Fetch Product
+        query = Product.objects
+        if lock:
+            query = query.select_for_update()
 
-        if not lock:
-            product = cache.get(cache_key)
+        product = query.filter(id=product_id).first()
 
+        # 1. Non-existent product
         if not product:
-            query = Product.objects
-            if lock:
-                query = query.select_for_update()
+            removed_items.append({"product_id": product_id, "reason": "deleted"})
+            continue
 
-            product = query.filter(id=product_id).first()
+        # 2. Inactive product
+        if not product.is_active:
+            removed_items.append({"product_id": product_id, "reason": "inactive", "title": product.title})
+            continue
 
-            if not product:
-                raise Exception(f"Product #{product_id} no longer available")
+        # 3. Out of stock
+        if product.stock <= 0:
+            removed_items.append({"product_id": product_id, "reason": "out_of_stock", "title": product.title})
+            continue
 
-            if product and not lock:
-                cache.set(cache_key, product, 300) # 5 minutes validation
-
-        # Stock Validation (ALWAYS fresh from DB when lock=True)
-        if product.stock < 1:
-            raise Exception("Out of stock")
-
+        # 4. Quantity adjustment
         if quantity > product.stock:
-            quantity = product.stock # CAP to available stock
+            removed_items.append({
+                "product_id": product_id, 
+                "reason": "quantity_adjusted", 
+                "title": product.title,
+                "original_qty": quantity,
+                "new_qty": product.stock
+            })
+            quantity = product.stock
 
-        validated_items.append({
+        # 5. Valid Item
+        valid_items.append({
             "product": product,
             "quantity": quantity,
             "price_inr": product.price_inr
         })
 
-    return validated_items
+    return {
+        "valid_items": valid_items,
+        "removed_items": removed_items
+    }

@@ -158,6 +158,7 @@ class Product(models.Model):
     price_inr = models.IntegerField(help_text="Price in INR")
     category = models.CharField(max_length=100, blank=True)
     stock = models.IntegerField(default=10, help_text="Stock Quantity")
+    is_active = models.BooleanField(default=True, help_text="Product Visibility/Availability")
 
     def __str__(self):
         return f"{self.title} (₹{self.price_inr})"

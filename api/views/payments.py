@@ -65,21 +65,20 @@ def create_checkout_session(request):
 
         # Validation
         from ..utils import validate_cart
-        try:
-            validated_items = validate_cart(normalized_items, lock=False)
-            
-            logger.info({
-                "event": "final_cart_payload",
-                "items": normalized_items
-            })
-        except Exception as e:
-            logger.error(f"Validation failed during checkout creation: {str(e)}")
-            return Response({"error": str(e)}, status=400)
+        validated = validate_cart(normalized_items, lock=False)
+        valid_items = validated["valid_items"]
+        removed_items = validated["removed_items"]
+
+        if removed_items:
+            logger.warning(f"Items removed/adjusted during checkout: {removed_items}")
+
+        if not valid_items:
+            return Response({"error": "No available products in your cart"}, status=400)
 
         total = 0
         line_items = []
 
-        for v_item in validated_items:
+        for v_item in valid_items:
             product = v_item["product"]
             qty = v_item["quantity"]
             price_inr = v_item["price_inr"]
@@ -119,7 +118,11 @@ def create_checkout_session(request):
         ActivityLog.objects.create(user=request.user, action="Created checkout session")
         logger.info(f"Checkout Session Created: {session.id} for user_id={request.user.id}")
 
-        return Response({"url": session.url})
+        response_data = {"url": session.url}
+        if removed_items:
+            response_data["message"] = "Some items were updated or removed before checkout"
+
+        return Response(response_data)
 
     except Exception as e:
         logger.error(f"STRIPE CHECKOUT ERROR: {str(e)}")
@@ -176,12 +179,21 @@ def stripe_webhook(request):
 
             try:
                 with transaction.atomic():
-                    validated_items = validate_cart(snapshot.items, lock=True)
-                    
+                    validated = validate_cart(snapshot.items, lock=True)
+                    valid_items = validated["valid_items"]
+                    removed_items = validated["removed_items"]
+
+                    if removed_items:
+                        logger.warning(f"Webhook: items removed/adjusted for session {session_id}: {removed_items}")
+
+                    if not valid_items:
+                        logger.error(f"Webhook: No valid items for session {session_id}")
+                        return HttpResponse(status=400)
+
                     total = 0
                     items_snapshot = []
 
-                    for v_item in validated_items:
+                    for v_item in valid_items:
                         product = v_item["product"]
                         qty = v_item["quantity"]
                         price_inr = v_item["price_inr"]
@@ -199,7 +211,7 @@ def stripe_webhook(request):
                         })
 
                     from django.core.cache import cache
-                    for item in validated_items:
+                    for item in valid_items:
                         product = item["product"]
                         cache.delete(f"product_{product.id}")
 
