@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from ..models import Profile, ActivityLog
+import logging
+log = logging.getLogger(__name__)
 
 
 # ==================================================
@@ -21,19 +23,29 @@ def signup(request):
     if not username or not email or not password:
         return Response({"error": "All fields are required"}, status=400)
 
+    # STEP 1: NORMALIZE INPUT
+    email = email.strip().lower()
+    username = username.strip()
+
+    # STEP 2: VERIFY DATABASE BEFORE VALIDATION
+    log.warning(f"[REGISTER DEBUG] Existing users: {User.objects.filter(email=email)}")
+
     # Email Validation
     import re
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
         return Response({"error": "Invalid email format"}, status=400)
 
-    if User.objects.filter(username=username).exists():
+    # STEP 3: FIX VALIDATION LOGIC
+    existing_user_by_username = User.objects.filter(username=username).first()
+    if existing_user_by_username:
         return Response({"error": "Username already exists"}, status=400)
 
-    if User.objects.filter(email=email).exists():
+    existing_user_by_email = User.objects.filter(email=email).first()
+    if existing_user_by_email:
         return Response({"error": "Email already exists"}, status=400)
 
     # SECURE FIX: Prevent creating admin@aikart.com or user 'admin' via signup
-    if email.lower() == "admin@aikart.com" or username.lower() == "admin":
+    if email == "admin@aikart.com" or username.lower() == "admin":
         return Response({"error": "Reserved credentials"}, status=400)
 
     user = User.objects.create_user(username=username, email=email, password=password)

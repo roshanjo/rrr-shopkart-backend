@@ -38,7 +38,7 @@ class Profile(models.Model):
     )
 
     def __str__(self):
-        return self.user.username
+        return self.user.username if self.user else "Deleted User"
 
 
 # ============================
@@ -106,7 +106,7 @@ class Order(models.Model):
     )
 
     def __str__(self):
-        return f"Order #{self.id} - {self.user.username}"
+        return f"Order #{self.id} - {self.user.username if self.user else 'Deleted User'}"
 
 
 # ============================
@@ -148,7 +148,7 @@ class Address(models.Model):
     )
 
     def __str__(self):
-        return f"{self.user.username} - {self.city}"
+        return f"{self.user.username if self.user else 'Deleted User'} - {self.city}"
 
 
 # ============================

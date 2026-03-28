@@ -118,8 +118,8 @@ def user_action(request, user_id):
         username = user.username
         with transaction.atomic():
             user.delete()
+            ActivityLog.objects.create(user=request.user, action=f"Hard-deleted user {username} (ID: {user_id})")
         
-        ActivityLog.objects.create(user=request.user, action=f"Hard-deleted user {username} (ID: {user_id})")
         return Response({"message": f"User {username} permanently deleted", "status": "deleted"})
     else:
         return Response({"error": "Invalid action"}, status=400)
