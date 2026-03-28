@@ -34,6 +34,17 @@ def validate_cart(items, lock=False):
             query = query.select_for_update()
 
         product = query.filter(id=product_id).first()
+        exists = product is not None
+
+        # Structured Logging (As requested by DEBUG requirements)
+        import logging
+        log = logging.getLogger(__name__)
+        log.warning(
+            f"[CartValidation] ID={product_id} Exists={exists} "
+            f"Active={product.is_active if exists else 'N/A'} "
+            f"Stock={product.stock if exists else 'N/A'} "
+            f"Qty={quantity}"
+        )
 
         # 1. Non-existent product
         if not product:
