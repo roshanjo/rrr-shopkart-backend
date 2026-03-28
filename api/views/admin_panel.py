@@ -1,6 +1,8 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from django.db.models import Sum
 from django.utils import timezone
+from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.http import HttpResponse
@@ -58,8 +60,8 @@ def analytics(request):
 @api_view(["GET"])
 @permission_classes([IsCustomAdmin])
 def list_users(request):
-    # Exclude soft-deleted users
-    users = User.objects.exclude(profile__status="deleted").order_by("-id")
+    # Get all users (sorted by ID)
+    users = User.objects.all().order_by("-id")
     data = []
     for u in users:
         profile, _ = Profile.objects.get_or_create(user=u)
@@ -104,13 +106,21 @@ def user_action(request, user_id):
     elif action == "unblock" or action == "activate":
         profile.status = "active"
         user.is_active = True
-    elif action == "delete" or action == "soft_delete":
-        profile.status = "deleted"
-        user.is_active = False
-        profile.save()
-        user.save()
-        ActivityLog.objects.create(user=request.user, action=f"Soft-deleted user {user_id}")
-        return Response({"message": "User soft-deleted successfully", "status": "deleted"})
+    elif action == "delete" or action == "hard_delete":
+        # PROTECT ADMIN + SUPERUSER
+        PROTECTED_ADMIN_EMAIL = "admin@aikart.com"
+        if user.email == PROTECTED_ADMIN_EMAIL or user.is_superuser:
+            return Response({
+                "error": "This account cannot be deleted"
+            }, status=403)
+
+        # PERMANENT HARD DELETE
+        username = user.username
+        with transaction.atomic():
+            user.delete()
+        
+        ActivityLog.objects.create(user=request.user, action=f"Hard-deleted user {username} (ID: {user_id})")
+        return Response({"message": f"User {username} permanently deleted", "status": "deleted"})
     else:
         return Response({"error": "Invalid action"}, status=400)
 
